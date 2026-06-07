@@ -8,12 +8,46 @@ The MVP starts with TypeScript and JavaScript through `typescript-language-serve
 
 ## Status
 
-Design approved. Implementation has not started yet.
+Slice 1 scaffold is implemented. It provides a runnable MCP stdio server with static `health` and `capabilities` tools. Real LSP behavior is still future work.
 
 See:
 
-- `docs/superpowers/specs/2026-06-06-lsp-mcp-design.md`
+- `docs/superpowers/specs/2026-06-07-slice-1-mcp-scaffold-design.md`
 - `docs/architecture.md`
+
+## Development
+
+Install dependencies:
+
+```sh
+pnpm install
+```
+
+Run tests:
+
+```sh
+pnpm test
+```
+
+Run checks:
+
+```sh
+pnpm check
+```
+
+Build:
+
+```sh
+pnpm build
+```
+
+Run a bounded local CLI smoke test after building:
+
+```sh
+timeout 1s node dist/cli.js
+```
+
+The smoke test times out because the MCP stdio server waits for protocol messages. It should not print logs to stdout.
 
 ## MVP Goals
 
