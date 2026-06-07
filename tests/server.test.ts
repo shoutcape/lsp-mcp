@@ -42,4 +42,61 @@ describe("MCP server", () => {
 
     await server.close();
   });
+
+  it("uses an injected provider for tool calls", async () => {
+    const server = createServer({
+      provider: {
+        async getHealth() {
+          return {
+            status: "degraded" as const,
+            message: "test provider health",
+          };
+        },
+        async getCapabilities() {
+          return {
+            status: "degraded" as const,
+            supportedTools: ["health", "capabilities", "test_only"],
+            lsp: "not_implemented" as const,
+          };
+        },
+      },
+    });
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    clients.push(client);
+
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    const health = await client.callTool({ name: "health", arguments: {} });
+    expect(health.content).toEqual([
+      {
+        type: "text",
+        text: [
+          "Status: degraded",
+          "Tool: health",
+          "Message: test provider health",
+        ].join("\n"),
+      },
+    ]);
+
+    const capabilities = await client.callTool({
+      name: "capabilities",
+      arguments: {},
+    });
+    expect(capabilities.content).toEqual([
+      {
+        type: "text",
+        text: [
+          "Status: degraded",
+          "Tool: capabilities",
+          "Supported tools: health, capabilities, test_only",
+          "LSP: not implemented",
+        ].join("\n"),
+      },
+    ]);
+
+    await server.close();
+  });
 });
