@@ -12,6 +12,7 @@ Slice 3 config, roots, and path safety foundation is implemented. The runnable M
 
 See:
 
+- `docs/superpowers/README.md`
 - `docs/superpowers/specs/2026-06-07-slice-1-mcp-scaffold-design.md`
 - `docs/superpowers/specs/2026-06-07-slice-2-provider-foundation-design.md`
 - `docs/superpowers/specs/2026-06-07-slice-3-config-roots-safety-design.md`
