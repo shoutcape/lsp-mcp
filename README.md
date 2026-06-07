@@ -8,12 +8,13 @@ The MVP starts with TypeScript and JavaScript through `typescript-language-serve
 
 ## Status
 
-Slice 2 provider foundation is implemented. The runnable MCP stdio server still exposes static `health` and `capabilities` tools, but those tools now route through a `SemanticProvider` boundary. Config defaults and a workspace root data model are present for future LSP work. Real LSP behavior is still future work.
+Slice 3 config, roots, and path safety foundation is implemented. The runnable MCP stdio server still exposes static `health` and `capabilities` tools, but those tools now route through a `SemanticProvider` boundary. Optional JSONC config loading, explicit workspace root resolution, and pure path confinement helpers are present for future LSP work. Real LSP behavior is still future work.
 
 See:
 
 - `docs/superpowers/specs/2026-06-07-slice-1-mcp-scaffold-design.md`
 - `docs/superpowers/specs/2026-06-07-slice-2-provider-foundation-design.md`
+- `docs/superpowers/specs/2026-06-07-slice-3-config-roots-safety-design.md`
 - `docs/architecture.md`
 
 ## Development
