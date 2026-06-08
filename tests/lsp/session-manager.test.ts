@@ -56,12 +56,12 @@ describe("LspSessionManager", () => {
       sessionFactory,
     });
 
-    await expect(manager.ensureSession("app/src/index.ts")).resolves.toEqual(
-      readyInfo,
-    );
-    await expect(manager.ensureSession("app/src/index.ts")).resolves.toEqual(
-      readyInfo,
-    );
+    await expect(
+      manager.ensureSession("app/src/index.ts"),
+    ).resolves.toMatchObject({ info: readyInfo });
+    await expect(
+      manager.ensureSession("app/src/index.ts"),
+    ).resolves.toMatchObject({ info: readyInfo });
 
     expect(sessionFactory).toHaveBeenCalledTimes(1);
     expect(initialize).toHaveBeenCalledTimes(2);
@@ -125,7 +125,7 @@ describe("LspSessionManager", () => {
 
     const result = await manager.ensureSession("app/src/index.ts");
     const returnedCompletionProvider =
-      result.rawServerCapabilities?.completionProvider;
+      result.info.rawServerCapabilities?.completionProvider;
 
     if (returnedCompletionProvider?.triggerCharacters === undefined) {
       throw new Error("expected completion trigger characters");
@@ -134,7 +134,7 @@ describe("LspSessionManager", () => {
     returnedCompletionProvider.triggerCharacters.push("#");
     const nextResult = await manager.ensureSession("app/src/index.ts");
 
-    expect(nextResult.rawServerCapabilities?.completionProvider).toEqual({
+    expect(nextResult.info.rawServerCapabilities?.completionProvider).toEqual({
       triggerCharacters: ["."],
     });
   });
@@ -183,12 +183,14 @@ describe("LspSessionManager", () => {
       sessionFactory: vi.fn(),
     });
 
-    await expect(manager.ensureSession("README.md")).resolves.toEqual({
-      state: "failed",
-      message: "Unsupported TypeScript file extension: README.md",
-      projectAnchor: "",
-      rootPath: "",
-      serverCapabilities: [],
+    await expect(manager.ensureSession("README.md")).resolves.toMatchObject({
+      info: {
+        state: "failed",
+        message: "Unsupported TypeScript file extension: README.md",
+        projectAnchor: "",
+        rootPath: "",
+        serverCapabilities: [],
+      },
     });
   });
 });

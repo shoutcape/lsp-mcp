@@ -8,6 +8,7 @@ const messageConnectionMock = vi.hoisted(() => ({
   listen: vi.fn(),
   sendRequest: vi.fn(),
   sendNotification: vi.fn(),
+  onNotification: vi.fn(),
   dispose: vi.fn(),
 }));
 
@@ -39,6 +40,7 @@ function createMockConnection(): LspConnection {
       },
     }),
     sendNotification: vi.fn().mockResolvedValue(undefined),
+    onNotification: vi.fn(),
     dispose: vi.fn(),
   };
 }
@@ -56,6 +58,7 @@ describe("LspSession", () => {
     messageConnectionMock.listen.mockReset();
     messageConnectionMock.sendRequest.mockReset();
     messageConnectionMock.sendNotification.mockReset();
+    messageConnectionMock.onNotification.mockReset();
     messageConnectionMock.dispose.mockReset();
   });
 
@@ -104,7 +107,11 @@ describe("LspSession", () => {
           uri: "file:///workspace",
         },
       ],
-      capabilities: {},
+      capabilities: expect.objectContaining({
+        textDocument: expect.objectContaining({
+          publishDiagnostics: expect.any(Object),
+        }),
+      }),
     });
     expect(connection.sendNotification).toHaveBeenCalledTimes(1);
   });
