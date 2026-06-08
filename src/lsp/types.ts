@@ -21,6 +21,7 @@ export interface LspConnection {
   listen(): void;
   sendRequest(method: unknown, params: unknown): Promise<unknown>;
   sendNotification(method: unknown, params?: unknown): Promise<void>;
+  onNotification(method: unknown, handler: (params: unknown) => void): void;
   dispose(): void;
 }
 

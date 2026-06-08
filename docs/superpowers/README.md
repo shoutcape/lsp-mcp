@@ -4,7 +4,7 @@ This directory tracks slice specs and implementation plans for `lsp-mcp`.
 
 ## Current Slice
 
-Slice 4 LSP initialization foundation is implemented. First semantic tools remain future work.
+Slice 5 semantic tools are implemented. First TypeScript semantic MCP tools are available through `goto_definition`, `find_references`, `hover`, and `diagnostics`.
 
 ## Slice Index
 
@@ -14,6 +14,7 @@ Slice 4 LSP initialization foundation is implemented. First semantic tools remai
 | Slice 2 Provider Foundation | Implemented | [spec](specs/2026-06-07-slice-2-provider-foundation-design.md) | [plan](plans/2026-06-07-slice-2-provider-foundation.md) | `Projects/lsp-mcp/lsp-mcp Slice 2 Provider Foundation.md` |
 | Slice 3 Config Roots Safety | Implemented | [spec](specs/2026-06-07-slice-3-config-roots-safety-design.md) | [plan](plans/2026-06-07-slice-3-config-roots-safety.md) | Not created yet |
 | Slice 4 LSP Initialization Foundation | Implemented | [spec](specs/2026-06-07-slice-4-lsp-initialization-foundation-design.md) | [plan](plans/2026-06-07-slice-4-lsp-initialization-foundation.md) | `Projects/lsp-mcp/lsp-mcp Slice 4 LSP Initialization Foundation.md` |
+| Slice 5 Semantic Tools | Implemented | [spec](specs/2026-06-08-slice-5-semantic-tools-design.md) | [plan](plans/2026-06-08-slice-5-semantic-tools.md) | Not created yet |
 
 ## Tracking Rule
 

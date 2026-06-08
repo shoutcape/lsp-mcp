@@ -1,8 +1,12 @@
 import type {
   CapabilitiesInfo,
   CapabilitiesRequest,
+  DefinitionResult,
+  DiagnosticsResult,
   HealthInfo,
   HealthRequest,
+  HoverResult,
+  ReferencesResult,
   SemanticProvider,
 } from "./semantic-provider.js";
 
@@ -22,5 +26,21 @@ export class StaticSemanticProvider implements SemanticProvider {
       supportedTools: ["health", "capabilities"],
       lsp: "not_implemented",
     };
+  }
+
+  async getDefinition(): Promise<DefinitionResult> {
+    return { definitions: [] };
+  }
+
+  async getReferences(): Promise<ReferencesResult> {
+    return { references: [] };
+  }
+
+  async getHover(): Promise<HoverResult> {
+    return { content: "" };
+  }
+
+  async getDiagnostics(): Promise<DiagnosticsResult> {
+    return { diagnostics: [] };
   }
 }

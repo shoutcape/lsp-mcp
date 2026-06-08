@@ -42,9 +42,12 @@ describe("LspSemanticProvider", () => {
     const manager: LspProviderSessionManager = {
       getSummary: vi.fn(),
       ensureSession: vi.fn().mockResolvedValue({
-        state: "ready",
-        message: "TypeScript LSP initialized.",
-        serverCapabilities: [],
+        info: {
+          state: "ready",
+          message: "TypeScript LSP initialized.",
+          serverCapabilities: [],
+        },
+        session: {},
       }),
     };
     const provider = new LspSemanticProvider({ manager });
@@ -63,9 +66,12 @@ describe("LspSemanticProvider", () => {
     const manager: LspProviderSessionManager = {
       getSummary: vi.fn(),
       ensureSession: vi.fn().mockResolvedValue({
-        state: "ready",
-        message: "TypeScript LSP initialized.",
-        serverCapabilities,
+        info: {
+          state: "ready",
+          message: "TypeScript LSP initialized.",
+          serverCapabilities,
+        },
+        session: {},
       }),
     };
     const provider = new LspSemanticProvider({ manager });
@@ -74,7 +80,14 @@ describe("LspSemanticProvider", () => {
       provider.getCapabilities({ check: true, file: "src/index.ts" }),
     ).resolves.toEqual({
       status: "ready",
-      supportedTools: ["health", "capabilities"],
+      supportedTools: [
+        "health",
+        "capabilities",
+        "goto_definition",
+        "find_references",
+        "hover",
+        "diagnostics",
+      ],
       lsp: "implemented",
       serverCapabilities,
     });

@@ -4,13 +4,22 @@ import {
   type TypeScriptProjectRouteResult,
 } from "../languages/typescript/project-routing.js";
 import type { WorkspaceRoot } from "../workspace/roots.js";
+import type { DiagnosticsStore } from "./diagnostics-store.js";
 import { LspSession } from "./session.js";
-import type { LspSessionInfo } from "./types.js";
+import type { LspConnection, LspSessionInfo } from "./types.js";
 
 export type { LspSessionInfo } from "./types.js";
 
 export interface LspSessionLike {
   initialize(): Promise<LspSessionInfo>;
+  getConnection(): LspConnection | undefined;
+  getDiagnosticsStore(): DiagnosticsStore | undefined;
+  prepareFile(filePath: string, languageId: string): Promise<void>;
+}
+
+export interface EnsureSessionResult {
+  info: LspSessionInfo;
+  session: LspSessionLike;
 }
 
 export interface LspSessionManagerSummary {
@@ -74,7 +83,7 @@ export class LspSessionManager {
     };
   }
 
-  async ensureSession(requestedPath: string): Promise<LspSessionInfo> {
+  async ensureSession(requestedPath: string): Promise<EnsureSessionResult> {
     const route = await this.routeProject({
       requestedPath,
       roots: this.roots,
@@ -90,7 +99,22 @@ export class LspSessionManager {
         serverCapabilities: [],
       };
 
-      return cloneInfo(this.lastInfo);
+      const failedInfo = cloneInfo(this.lastInfo);
+      const failedSession: LspSessionLike = {
+        async initialize() {
+          return failedInfo;
+        },
+        getConnection() {
+          return undefined;
+        },
+        getDiagnosticsStore() {
+          return undefined;
+        },
+        async prepareFile() {
+          throw new Error("LSP session not ready.");
+        },
+      };
+      return { info: failedInfo, session: failedSession };
     }
 
     let session = this.sessionsByProjectAnchor.get(route.projectAnchor);
@@ -106,7 +130,7 @@ export class LspSessionManager {
 
     this.lastInfo = cloneInfo(await session.initialize());
 
-    return cloneInfo(this.lastInfo);
+    return { info: cloneInfo(this.lastInfo), session };
   }
 }
 

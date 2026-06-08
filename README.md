@@ -8,7 +8,44 @@ The MVP starts with TypeScript and JavaScript through `typescript-language-serve
 
 ## Status
 
-Slice 4 LSP initialization foundation is implemented. The MCP stdio server can load config, resolve explicit workspace roots, route TypeScript and JavaScript files to project anchors, start `typescript-language-server`, initialize it over LSP JSON-RPC, and report live state through active `health` and `capabilities` checks. Semantic tools such as `diagnostics`, `hover`, and `definition` remain future work.
+Slice 5 semantic tools are implemented. The server provides 6 MCP tools:
+
+- `health` - Server and LSP health status
+- `capabilities` - List available tools and LSP capabilities
+- `goto_definition` - Jump to symbol definition (resolves through re-exports)
+- `find_references` - Find all usages of a symbol across the project
+- `hover` - Get inferred type and JSDoc documentation
+- `diagnostics` - Get TypeScript errors and warnings for one or more files
+
+See `docs/superpowers/specs/2026-06-08-slice-5-semantic-tools-design.md` and `docs/superpowers/plans/2026-06-08-slice-5-semantic-tools.md` for implementation details.
+
+## Quick Start
+
+Install globally:
+
+```sh
+npm install -g @shoutcape/lsp-mcp
+```
+
+Or use with npx in your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "lsp": {
+      "command": "npx",
+      "args": ["-y", "@shoutcape/lsp-mcp"],
+      "env": {
+        "LSP_WORKSPACE": "/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+Requirements:
+- `typescript-language-server` available in PATH (`npm install -g typescript-language-server`)
+- TypeScript installed in the target project (`npm install --save-dev typescript`)
 
 See:
 
@@ -17,6 +54,7 @@ See:
 - `docs/superpowers/specs/2026-06-07-slice-2-provider-foundation-design.md`
 - `docs/superpowers/specs/2026-06-07-slice-3-config-roots-safety-design.md`
 - `docs/superpowers/specs/2026-06-07-slice-4-lsp-initialization-foundation-design.md`
+- `docs/superpowers/specs/2026-06-08-slice-5-semantic-tools-design.md`
 - `docs/architecture.md`
 
 ## Development
@@ -70,12 +108,12 @@ Phase 1 foundation:
 - `capabilities`
 - `diagnostics`
 - `hover`
-- `definition`
+- `goto_definition`
+- `find_references`
 
 Phase 2 navigation:
 
 - `type_definition`
-- `references`
 - `workspace_symbols`
 - `document_symbols`
 - `implementation`

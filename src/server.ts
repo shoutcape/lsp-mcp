@@ -1,8 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
 
 import { loadConfig } from "./config/load-config.js";
 import { createTypeScriptPreset } from "./languages/typescript/preset.js";
+import type { EnsureSessionResult } from "./lsp/session-manager.js";
 import { LspSessionManager } from "./lsp/session-manager.js";
 import { LspSemanticProvider } from "./providers/lsp-semantic-provider.js";
 import type {
@@ -14,8 +16,26 @@ import {
   capabilitiesToolInputSchema,
   createCapabilitiesTool,
 } from "./tools/capabilities.js";
+import { createDefinitionTool } from "./tools/definition.js";
+import { createDiagnosticsTool } from "./tools/diagnostics.js";
 import { createHealthTool, healthToolInputSchema } from "./tools/health.js";
+import { createHoverTool } from "./tools/hover.js";
+import { createReferencesTool } from "./tools/references.js";
 import { resolveWorkspaceRoots } from "./workspace/resolve-roots.js";
+
+export const fileLocationInputSchema = {
+  file: z.string().describe("Absolute path to the TypeScript/JavaScript file"),
+  line: z.number().int().positive().describe("Line number (1-based)"),
+  column: z.number().int().positive().describe("Column number (1-based)"),
+};
+
+export const diagnosticsInputSchema = {
+  file: z.string().optional().describe("Absolute path to a single file"),
+  files: z
+    .array(z.string())
+    .optional()
+    .describe("Array of absolute file paths"),
+};
 
 export interface ServerDependencies {
   provider?: SemanticProvider;
@@ -44,6 +64,64 @@ export function createServer(dependencies: ServerDependencies = {}): McpServer {
       inputSchema: capabilitiesToolInputSchema,
     },
     createCapabilitiesTool(provider),
+  );
+
+  server.registerTool(
+    "goto_definition",
+    {
+      description:
+        "Jump to the definition of a symbol (function, variable, type, import). " +
+        "Returns the file path and line number where the symbol is defined. " +
+        "Positions are 1-based. " +
+        "USE THIS INSTEAD OF grep/read when you need to find where a symbol is originally defined. " +
+        "Resolves through re-exports, barrel files, and type aliases to the actual source definition. " +
+        "Much faster and more accurate than grepping for export statements.",
+      inputSchema: fileLocationInputSchema,
+    },
+    createDefinitionTool(provider),
+  );
+
+  server.registerTool(
+    "find_references",
+    {
+      description:
+        "Find all usages of a symbol across the project. " +
+        "Results are grouped by file, marking definition and write-access sites. " +
+        "USE THIS INSTEAD OF grep when you need to find all callers, consumers, or importers of a function/type/variable. " +
+        "Unlike grep, this understands TypeScript scope, resolves aliases, and finds usages through re-exports. " +
+        "Returns complete results - no risk of missing usages due to aliasing or renaming.",
+      inputSchema: fileLocationInputSchema,
+    },
+    createReferencesTool(provider),
+  );
+
+  server.registerTool(
+    "hover",
+    {
+      description:
+        "Get the inferred TypeScript type and JSDoc documentation for a symbol. " +
+        "Returns kind (function/variable/class/etc.), full type signature, and docs. " +
+        "USE THIS INSTEAD OF reading files when you need to know the type of a variable, " +
+        "return type of a function, or resolved generic type parameters. " +
+        "This computes the actual resolved type including generics, intersections, mapped types, " +
+        "and conditional types - information that CANNOT be determined by reading source text alone. " +
+        'Essential for answering "what type is X?" without manually tracing type definitions.',
+      inputSchema: fileLocationInputSchema,
+    },
+    createHoverTool(provider),
+  );
+
+  server.registerTool(
+    "diagnostics",
+    {
+      description:
+        "Get TypeScript errors and warnings for a file or set of files. " +
+        "Includes type errors (TS codes), syntax errors, and suggestions. " +
+        "USE THIS to verify code correctness after edits instead of running the full TypeScript compiler. " +
+        "WARNING: checking many files sequentially can be slow on large projects. Prefer single-file or targeted file list.",
+      inputSchema: diagnosticsInputSchema,
+    },
+    createDiagnosticsTool(provider),
   );
 
   return server;
@@ -90,6 +168,27 @@ export async function startStdioServer(): Promise<void> {
 
 function createSetupErrorProvider(message: string): SemanticProvider {
   const setupError: SetupErrorInfo = { message };
+  const failedInfo = {
+    state: "failed" as const,
+    message,
+    projectAnchor: "",
+    rootPath: "",
+    serverCapabilities: [],
+  };
+  const failedSession = {
+    async initialize() {
+      return { ...failedInfo };
+    },
+    getConnection() {
+      return undefined;
+    },
+    getDiagnosticsStore() {
+      return undefined;
+    },
+    async prepareFile(): Promise<void> {
+      throw new Error("LSP session not ready.");
+    },
+  };
   const manager = {
     getSummary() {
       return {
@@ -98,12 +197,8 @@ function createSetupErrorProvider(message: string): SemanticProvider {
         serverCapabilities: [],
       };
     },
-    async ensureSession() {
-      return {
-        state: "failed" as const,
-        message,
-        serverCapabilities: [],
-      };
+    async ensureSession(): Promise<EnsureSessionResult> {
+      return { info: { ...failedInfo }, session: failedSession };
     },
   };
 

@@ -8,11 +8,12 @@ import {
   StreamMessageWriter,
 } from "vscode-jsonrpc/node.js";
 import {
-  InitializedNotification,
-  InitializeRequest,
   type InitializeResult,
+  PublishDiagnosticsNotification,
   type ServerCapabilities,
 } from "vscode-languageserver-protocol";
+import { DiagnosticsStore } from "./diagnostics-store.js";
+import { DocumentSync } from "./document-sync.js";
 
 import type {
   LspConnection,
@@ -40,6 +41,10 @@ export class LspSession {
   private readonly initializeTimeoutMs: number;
   private info: LspSessionInfo;
   private initializePromise: Promise<LspSessionInfo> | undefined;
+  private activeConnection: LspConnection | undefined;
+  private activeProcess: LspProcess | undefined;
+  private documentSync: DocumentSync | undefined;
+  private diagnosticsStore: DiagnosticsStore | undefined;
 
   constructor(options: LspSessionOptions) {
     this.command = [...options.command];
@@ -60,6 +65,34 @@ export class LspSession {
 
   getInfo(): LspSessionInfo {
     return cloneInfo(this.info);
+  }
+
+  getConnection(): LspConnection | undefined {
+    return this.activeConnection;
+  }
+
+  getDocumentSync(): DocumentSync | undefined {
+    return this.documentSync;
+  }
+
+  getDiagnosticsStore(): DiagnosticsStore | undefined {
+    return this.diagnosticsStore;
+  }
+
+  stop(): void {
+    cleanupLspProcess(this.activeConnection, this.activeProcess);
+    this.activeConnection = undefined;
+    this.activeProcess = undefined;
+    this.documentSync = undefined;
+    this.diagnosticsStore?.clear();
+    this.diagnosticsStore = undefined;
+  }
+
+  async prepareFile(filePath: string, languageId: string): Promise<void> {
+    if (this.documentSync === undefined) {
+      throw new Error("LSP session is not ready.");
+    }
+    await this.documentSync.prepareFile(filePath, languageId);
   }
 
   async initialize(): Promise<LspSessionInfo> {
@@ -100,6 +133,7 @@ export class LspSession {
       });
       process = factoryResult.process;
       connection = factoryResult.connection;
+      this.activeProcess = process;
       this.registerExitHandler(process);
       connection.listen();
 
@@ -124,6 +158,17 @@ export class LspSession {
           ),
           rawServerCapabilities,
         };
+        this.activeConnection = connection;
+        this.diagnosticsStore = new DiagnosticsStore();
+        this.documentSync = new DocumentSync(connection);
+        connection.onNotification(
+          PublishDiagnosticsNotification.type,
+          (params) => {
+            this.diagnosticsStore?.onDiagnostics(
+              params as Parameters<DiagnosticsStore["onDiagnostics"]>[0],
+            );
+          },
+        );
       } finally {
         if (timeout !== undefined) {
           clearTimeout(timeout);
@@ -150,6 +195,10 @@ export class LspSession {
         rootPath: this.rootPath,
         serverCapabilities: [],
       };
+      this.activeConnection = undefined;
+      this.documentSync = undefined;
+      this.diagnosticsStore?.clear();
+      this.diagnosticsStore = undefined;
     });
   }
 
@@ -161,6 +210,10 @@ export class LspSession {
       rootPath: this.rootPath,
       serverCapabilities: [],
     };
+    this.activeConnection = undefined;
+    this.documentSync = undefined;
+    this.diagnosticsStore?.clear();
+    this.diagnosticsStore = undefined;
 
     return this.getInfo();
   }
@@ -169,23 +222,36 @@ export class LspSession {
     connection: LspConnection,
     process: LspProcess,
   ): Promise<InitializeResult> {
-    const initializeResult = (await connection.sendRequest(
-      InitializeRequest.type,
-      {
-        processId: process.pid ?? null,
-        rootPath: this.rootPath,
-        rootUri: pathToFileURL(this.projectAnchor).toString(),
-        workspaceFolders: [
-          {
-            name: workspaceFolderName(this.rootPath),
-            uri: pathToFileURL(this.rootPath).toString(),
+    const initializeResult = (await connection.sendRequest("initialize", {
+      processId: process.pid ?? null,
+      rootPath: this.rootPath,
+      rootUri: pathToFileURL(this.projectAnchor).toString(),
+      workspaceFolders: [
+        {
+          name: workspaceFolderName(this.rootPath),
+          uri: pathToFileURL(this.rootPath).toString(),
+        },
+      ],
+      capabilities: {
+        textDocument: {
+          publishDiagnostics: {
+            relatedInformation: true,
+            versionSupport: false,
+            tagSupport: { valueSet: [1, 2] },
+            codeDescriptionSupport: true,
+            dataSupport: true,
           },
-        ],
-        capabilities: {},
+          synchronization: {
+            dynamicRegistration: true,
+            willSave: false,
+            willSaveWaitUntil: false,
+            didSave: false,
+          },
+        },
       },
-    )) as InitializeResult;
+    })) as InitializeResult;
 
-    await connection.sendNotification(InitializedNotification.type, {});
+    await connection.sendNotification("initialized", {});
 
     return initializeResult;
   }
@@ -218,18 +284,37 @@ export async function createNodeLspConnection({
         connection.listen();
       },
       sendRequest(method, params) {
+        const methodStr =
+          typeof method === "string"
+            ? method
+            : (method as { method: string }).method;
         const sendRequest = connection.sendRequest as (
-          method: unknown,
+          method: string,
           params: unknown,
         ) => Promise<unknown>;
-        return sendRequest(method, params);
+        return sendRequest(methodStr, params);
       },
       sendNotification(method, params) {
+        const methodStr =
+          typeof method === "string"
+            ? method
+            : (method as { method: string }).method;
         const sendNotification = connection.sendNotification as (
-          method: unknown,
+          method: string,
           params?: unknown,
         ) => Promise<void>;
-        return sendNotification(method, params);
+        return sendNotification(methodStr, params);
+      },
+      onNotification(method, handler) {
+        const methodStr =
+          typeof method === "string"
+            ? method
+            : (method as { method: string }).method;
+        const onNotification = connection.onNotification as (
+          method: string,
+          handler: (params: unknown) => void,
+        ) => void;
+        onNotification(methodStr, handler);
       },
       dispose() {
         connection.dispose();
