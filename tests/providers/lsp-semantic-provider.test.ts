@@ -1,5 +1,7 @@
+import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
+import { DiagnosticsStore } from "../../src/lsp/diagnostics-store.js";
 import {
   type LspProviderSessionManager,
   LspSemanticProvider,
@@ -142,5 +144,48 @@ describe("LspSemanticProvider", () => {
       message: "No workspace roots configured.",
       setupError: { message: "No workspace roots configured." },
     });
+  });
+
+  it("uses cached diagnostics for unchanged prepared files", async () => {
+    const file = "/tmp/broken.ts";
+    const uri = pathToFileURL(file).toString();
+    const diagnosticsStore = new DiagnosticsStore();
+    diagnosticsStore.onDiagnostics({
+      uri,
+      diagnostics: [
+        {
+          range: {
+            start: { line: 1, character: 6 },
+            end: { line: 1, character: 7 },
+          },
+          message: "Type 'string' is not assignable to type 'number'.",
+          severity: 1,
+          code: 2322,
+        },
+      ],
+    });
+
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: {
+          state: "ready",
+          message: "TypeScript LSP initialized.",
+          serverCapabilities: [],
+        },
+        session: {
+          initialize: vi.fn(),
+          getConnection: vi.fn(),
+          getDiagnosticsStore: vi.fn(() => diagnosticsStore),
+          prepareFile: vi.fn().mockResolvedValue("unchanged"),
+        },
+      }),
+    };
+    const provider = new LspSemanticProvider({ manager });
+
+    const result = await provider.getDiagnostics({ file });
+
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0]?.code).toBe(2322);
   });
 });

@@ -230,14 +230,21 @@ export class LspSemanticProvider implements SemanticProvider {
 
       const uri = pathToFileURL(file).toString();
 
-      session.getDiagnosticsStore()?.clear();
-
-      await session.prepareFile(file, languageIdForFile(file));
-
       const store = session.getDiagnosticsStore();
       if (store === undefined) continue;
 
-      const diagnostics = await store.waitForDiagnostics(uri);
+      const revisionBefore = store.getRevision(uri);
+      const prepareResult = await session.prepareFile(
+        file,
+        languageIdForFile(file),
+      );
+
+      const diagnostics =
+        prepareResult === "unchanged" && revisionBefore > 0
+          ? store.getDiagnostics(uri)
+          : prepareResult === "unchanged"
+            ? await store.waitForDiagnostics(uri)
+            : await store.waitForDiagnosticsAfter(uri, revisionBefore);
 
       for (const d of diagnostics) {
         allDiagnostics.push({

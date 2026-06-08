@@ -13,7 +13,7 @@ import {
   type ServerCapabilities,
 } from "vscode-languageserver-protocol";
 import { DiagnosticsStore } from "./diagnostics-store.js";
-import { DocumentSync } from "./document-sync.js";
+import { DocumentSync, type PrepareFileResult } from "./document-sync.js";
 
 import type {
   LspConnection,
@@ -88,11 +88,14 @@ export class LspSession {
     this.diagnosticsStore = undefined;
   }
 
-  async prepareFile(filePath: string, languageId: string): Promise<void> {
+  async prepareFile(
+    filePath: string,
+    languageId: string,
+  ): Promise<PrepareFileResult> {
     if (this.documentSync === undefined) {
       throw new Error("LSP session is not ready.");
     }
-    await this.documentSync.prepareFile(filePath, languageId);
+    return this.documentSync.prepareFile(filePath, languageId);
   }
 
   async initialize(): Promise<LspSessionInfo> {

@@ -65,4 +65,33 @@ describe("DocumentSync", () => {
 
     expect(connection.sendNotification).toHaveBeenCalledTimes(1);
   });
+
+  it("reports unchanged when content hash has not changed", async () => {
+    const connection = createMockConnection();
+    const sync = new DocumentSync(connection, async () => "const x = 1;");
+
+    await expect(
+      sync.prepareFile("/workspace/src/index.ts", "typescript"),
+    ).resolves.toBe("opened");
+
+    await expect(
+      sync.prepareFile("/workspace/src/index.ts", "typescript"),
+    ).resolves.toBe("unchanged");
+  });
+
+  it("reports changed when content hash changes", async () => {
+    let content = "const x = 1;";
+    const connection = createMockConnection();
+    const sync = new DocumentSync(connection, async () => content);
+
+    await expect(
+      sync.prepareFile("/workspace/src/index.ts", "typescript"),
+    ).resolves.toBe("opened");
+
+    content = "const x = 2;";
+
+    await expect(
+      sync.prepareFile("/workspace/src/index.ts", "typescript"),
+    ).resolves.toBe("changed");
+  });
 });

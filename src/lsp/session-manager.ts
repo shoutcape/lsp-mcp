@@ -5,6 +5,7 @@ import {
 } from "../languages/typescript/project-routing.js";
 import type { WorkspaceRoot } from "../workspace/roots.js";
 import type { DiagnosticsStore } from "./diagnostics-store.js";
+import type { PrepareFileResult } from "./document-sync.js";
 import { LspSession } from "./session.js";
 import type { LspConnection, LspSessionInfo } from "./types.js";
 
@@ -14,7 +15,7 @@ export interface LspSessionLike {
   initialize(): Promise<LspSessionInfo>;
   getConnection(): LspConnection | undefined;
   getDiagnosticsStore(): DiagnosticsStore | undefined;
-  prepareFile(filePath: string, languageId: string): Promise<void>;
+  prepareFile(filePath: string, languageId: string): Promise<PrepareFileResult>;
 }
 
 export interface EnsureSessionResult {

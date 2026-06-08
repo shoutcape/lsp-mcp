@@ -10,6 +10,7 @@ import {
 import type { LspConnection } from "./types.js";
 
 export type ReadFileFn = (filePath: string) => Promise<string>;
+export type PrepareFileResult = "opened" | "changed" | "unchanged";
 
 interface TrackedDocument {
   version: number;
@@ -26,7 +27,10 @@ export class DocumentSync {
     this.readFile = readFile ?? ((p) => fsReadFile(p, "utf8"));
   }
 
-  async prepareFile(filePath: string, languageId: string): Promise<void> {
+  async prepareFile(
+    filePath: string,
+    languageId: string,
+  ): Promise<PrepareFileResult> {
     const content = await this.readFile(filePath);
     const contentHash = hashContent(content);
     const uri = pathToFileURL(filePath).toString();
@@ -39,11 +43,11 @@ export class DocumentSync {
         DidOpenTextDocumentNotification.type,
         { textDocument: { uri, languageId, version, text: content } },
       );
-      return;
+      return "opened";
     }
 
     if (existing.contentHash === contentHash) {
-      return;
+      return "unchanged";
     }
 
     const version = existing.version + 1;
@@ -55,6 +59,7 @@ export class DocumentSync {
         contentChanges: [{ text: content }],
       },
     );
+    return "changed";
   }
 }
 

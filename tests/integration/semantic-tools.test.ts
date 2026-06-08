@@ -8,6 +8,7 @@ import {
   requestReferences,
 } from "../../src/lsp/semantic-requests.js";
 import { LspSession } from "../../src/lsp/session.js";
+import { LspSemanticProvider } from "../../src/providers/lsp-semantic-provider.js";
 
 const FIXTURE_ROOT = path.resolve(
   fileURLToPath(import.meta.url),
@@ -113,5 +114,29 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
 
     expect(diagnostics.length).toBeGreaterThan(0);
     expect(diagnostics.some((d) => d.severity === 1)).toBe(true); // severity 1 = error
+  }, 15_000);
+
+  it("provider returns diagnostics for repeated unchanged file requests", async () => {
+    const provider = new LspSemanticProvider({
+      manager: {
+        getSummary() {
+          const info = session.getInfo();
+          return {
+            state: info.state,
+            message: info.message,
+            serverCapabilities: info.serverCapabilities,
+          };
+        },
+        async ensureSession() {
+          return { info: session.getInfo(), session };
+        },
+      },
+    });
+
+    const first = await provider.getDiagnostics({ file: BROKEN_FILE });
+    expect(first.diagnostics.some((d) => d.severity === "error")).toBe(true);
+
+    const second = await provider.getDiagnostics({ file: BROKEN_FILE });
+    expect(second.diagnostics.some((d) => d.severity === "error")).toBe(true);
   }, 15_000);
 });

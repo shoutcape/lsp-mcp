@@ -56,4 +56,51 @@ describe("DiagnosticsStore", () => {
     const result = await store.waitForDiagnostics("file:///a.ts", 500);
     expect(result).toHaveLength(1);
   });
+
+  it("tracks revisions per URI", () => {
+    const store = new DiagnosticsStore();
+
+    expect(store.getRevision("file:///a.ts")).toBe(0);
+
+    store.onDiagnostics({
+      uri: "file:///a.ts",
+      diagnostics: [{ range: mockRange, message: "first", severity: 1 }],
+    });
+
+    expect(store.getRevision("file:///a.ts")).toBe(1);
+
+    store.onDiagnostics({
+      uri: "file:///a.ts",
+      diagnostics: [{ range: mockRange, message: "second", severity: 1 }],
+    });
+
+    expect(store.getRevision("file:///a.ts")).toBe(2);
+  });
+
+  it("waits for diagnostics after a revision", async () => {
+    const store = new DiagnosticsStore();
+
+    store.onDiagnostics({
+      uri: "file:///a.ts",
+      diagnostics: [{ range: mockRange, message: "old", severity: 1 }],
+    });
+
+    const revision = store.getRevision("file:///a.ts");
+    const promise = store.waitForDiagnosticsAfter(
+      "file:///a.ts",
+      revision,
+      500,
+    );
+
+    setTimeout(() => {
+      store.onDiagnostics({
+        uri: "file:///a.ts",
+        diagnostics: [{ range: mockRange, message: "new", severity: 1 }],
+      });
+    }, 20);
+
+    const result = await promise;
+    expect(result).toHaveLength(1);
+    expect(result[0].message).toBe("new");
+  });
 });

@@ -185,7 +185,7 @@ function createSetupErrorProvider(message: string): SemanticProvider {
     getDiagnosticsStore() {
       return undefined;
     },
-    async prepareFile(): Promise<void> {
+    async prepareFile() {
       throw new Error("LSP session not ready.");
     },
   };
