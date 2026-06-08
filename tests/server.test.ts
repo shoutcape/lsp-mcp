@@ -41,7 +41,11 @@ describe("MCP server", () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
       "capabilities",
+      "diagnostics",
+      "find_references",
+      "goto_definition",
       "health",
+      "hover",
     ]);
 
     const result = await client.callTool({ name: "health", arguments: {} });
