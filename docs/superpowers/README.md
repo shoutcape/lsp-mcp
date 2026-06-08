@@ -4,7 +4,7 @@ This directory tracks slice specs and implementation plans for `lsp-mcp`.
 
 ## Current Slice
 
-Slice 3 config, roots, and path safety foundation is implemented. Real LSP startup and semantic tools remain future work.
+Slice 4 LSP initialization foundation is implemented. First semantic tools remain future work.
 
 ## Slice Index
 
@@ -13,6 +13,7 @@ Slice 3 config, roots, and path safety foundation is implemented. Real LSP start
 | Slice 1 MCP Scaffold | Implemented | [spec](specs/2026-06-07-slice-1-mcp-scaffold-design.md) | [plan](plans/2026-06-07-slice-1-mcp-scaffold.md) | `Projects/lsp-mcp/lsp-mcp Slice 1 MCP Scaffold.md` |
 | Slice 2 Provider Foundation | Implemented | [spec](specs/2026-06-07-slice-2-provider-foundation-design.md) | [plan](plans/2026-06-07-slice-2-provider-foundation.md) | `Projects/lsp-mcp/lsp-mcp Slice 2 Provider Foundation.md` |
 | Slice 3 Config Roots Safety | Implemented | [spec](specs/2026-06-07-slice-3-config-roots-safety-design.md) | [plan](plans/2026-06-07-slice-3-config-roots-safety.md) | Not created yet |
+| Slice 4 LSP Initialization Foundation | Implemented | [spec](specs/2026-06-07-slice-4-lsp-initialization-foundation-design.md) | [plan](plans/2026-06-07-slice-4-lsp-initialization-foundation.md) | `Projects/lsp-mcp/lsp-mcp Slice 4 LSP Initialization Foundation.md` |
 
 ## Tracking Rule
 

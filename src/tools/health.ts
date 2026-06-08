@@ -1,11 +1,18 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 
 import type {
   HealthInfo,
+  HealthRequest,
   SemanticProvider,
 } from "../providers/semantic-provider.js";
 import { StaticSemanticProvider } from "../providers/static-semantic-provider.js";
 import { textResult } from "./text-result.js";
+
+export const healthToolInputSchema = {
+  check: z.boolean().optional(),
+  file: z.string().optional(),
+};
 
 export function formatHealthText(health: HealthInfo): string {
   return [
@@ -16,8 +23,10 @@ export function formatHealthText(health: HealthInfo): string {
 }
 
 export function createHealthTool(provider: SemanticProvider) {
-  return async function getHealthResult(): Promise<CallToolResult> {
-    return textResult(formatHealthText(await provider.getHealth()));
+  return async function getHealthResult(
+    request: HealthRequest = {},
+  ): Promise<CallToolResult> {
+    return textResult(formatHealthText(await provider.getHealth(request)));
   };
 }
 

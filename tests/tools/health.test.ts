@@ -44,4 +44,36 @@ describe("health tool output", () => {
       ],
     });
   });
+
+  it("forwards active check input to the provider", async () => {
+    const seenRequests: unknown[] = [];
+    const handler = createHealthTool({
+      async getHealth(request) {
+        seenRequests.push(request);
+        return {
+          status: "ready" as const,
+          message: "TypeScript LSP initialized.",
+        };
+      },
+      async getCapabilities() {
+        throw new Error("not used");
+      },
+    });
+
+    await expect(
+      handler({ check: true, file: "src/index.ts" }),
+    ).resolves.toEqual({
+      content: [
+        {
+          type: "text",
+          text: [
+            "Status: ready",
+            "Tool: health",
+            "Message: TypeScript LSP initialized.",
+          ].join("\n"),
+        },
+      ],
+    });
+    expect(seenRequests).toEqual([{ check: true, file: "src/index.ts" }]);
+  });
 });
