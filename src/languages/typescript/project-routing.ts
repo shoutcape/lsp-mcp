@@ -36,6 +36,45 @@ export type TypeScriptProjectRouteResult =
 export async function routeTypeScriptProject(
   options: RouteTypeScriptProjectOptions,
 ): Promise<TypeScriptProjectRouteResult> {
+  if (options.roots.length === 0) {
+    // No configured roots -- skip path safety, infer project from file
+    const filePath = path.resolve(options.requestedPath);
+
+    const languageId = options.preset.languageIdForPath(filePath);
+    if (languageId === undefined) {
+      return {
+        ok: false,
+        error: {
+          code: "unsupported_file_type",
+          message: `Unsupported TypeScript file extension: ${options.requestedPath}`,
+        },
+      };
+    }
+
+    try {
+      const inferredRoot = await findProjectRoot(
+        path.dirname(filePath),
+        options.preset.getProjectMarkers(),
+      );
+      return {
+        ok: true,
+        path: filePath,
+        root: { path: inferredRoot },
+        projectAnchor: inferredRoot,
+        languageId,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "project_route_error",
+          message: `Failed to infer project root: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      };
+    }
+  }
+
+  // Configured roots -- enforce path safety (existing behavior)
   const safePath = resolveSafePath({
     requestedPath: options.requestedPath,
     roots: options.roots,
@@ -78,6 +117,24 @@ export async function routeTypeScriptProject(
       },
     };
   }
+}
+
+async function findProjectRoot(
+  startDirectory: string,
+  markers: string[],
+): Promise<string> {
+  let directory = startDirectory;
+  while (true) {
+    for (const marker of markers) {
+      if (await isFile(path.join(directory, marker))) {
+        return directory;
+      }
+    }
+    const parent = path.dirname(directory);
+    if (parent === directory) break; // filesystem root reached
+    directory = parent;
+  }
+  return startDirectory; // fallback: file's own directory
 }
 
 async function findProjectAnchor(

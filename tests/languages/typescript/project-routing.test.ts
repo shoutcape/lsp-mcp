@@ -164,4 +164,88 @@ describe("routeTypeScriptProject", () => {
       },
     });
   });
+
+  describe("with no configured roots", () => {
+    it("uses nearest tsconfig.json as project anchor when no roots configured", async () => {
+      const tempDir = await mkdtemp(path.join(os.tmpdir(), "lsp-mcp-infer-"));
+      const srcDir = path.join(tempDir, "src");
+      await mkdir(srcDir, { recursive: true });
+      await writeFile(path.join(tempDir, "tsconfig.json"), "{}");
+      await writeFile(path.join(srcDir, "index.ts"), "");
+
+      const result = await routeTypeScriptProject({
+        requestedPath: path.join(srcDir, "index.ts"),
+        roots: [],
+        preset,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        path: path.join(srcDir, "index.ts"),
+        root: { path: tempDir },
+        projectAnchor: tempDir,
+        languageId: "typescript",
+      });
+    });
+
+    it("uses nearest package.json as project anchor when no tsconfig.json exists", async () => {
+      const tempDir = await mkdtemp(path.join(os.tmpdir(), "lsp-mcp-infer-"));
+      const srcDir = path.join(tempDir, "src");
+      await mkdir(srcDir, { recursive: true });
+      await writeFile(path.join(tempDir, "package.json"), "{}");
+      await writeFile(path.join(srcDir, "index.ts"), "");
+
+      const result = await routeTypeScriptProject({
+        requestedPath: path.join(srcDir, "index.ts"),
+        roots: [],
+        preset,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        path: path.join(srcDir, "index.ts"),
+        root: { path: tempDir },
+        projectAnchor: tempDir,
+        languageId: "typescript",
+      });
+    });
+
+    it("falls back to file directory when no project markers found", async () => {
+      const tempDir = await mkdtemp(path.join(os.tmpdir(), "lsp-mcp-infer-"));
+      const srcDir = path.join(tempDir, "src");
+      await mkdir(srcDir, { recursive: true });
+      await writeFile(path.join(srcDir, "index.ts"), "");
+      // no tsconfig.json or package.json anywhere in tempDir
+
+      const result = await routeTypeScriptProject({
+        requestedPath: path.join(srcDir, "index.ts"),
+        roots: [],
+        preset,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        path: path.join(srcDir, "index.ts"),
+        root: { path: srcDir },
+        projectAnchor: srcDir,
+        languageId: "typescript",
+      });
+    });
+
+    it("rejects unsupported extensions even with no roots configured", async () => {
+      const tempDir = await mkdtemp(path.join(os.tmpdir(), "lsp-mcp-infer-"));
+      await writeFile(path.join(tempDir, "readme.md"), "");
+
+      const result = await routeTypeScriptProject({
+        requestedPath: path.join(tempDir, "readme.md"),
+        roots: [],
+        preset,
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "unsupported_file_type" },
+      });
+    });
+  });
 });
