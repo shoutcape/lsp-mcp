@@ -4,7 +4,7 @@ This directory tracks slice specs and implementation plans for `lsp-mcp`.
 
 ## Current Slice
 
-Slice 5 semantic tools are implemented. First TypeScript semantic MCP tools are available through `goto_definition`, `find_references`, `hover`, and `diagnostics`.
+Slice 6 zero-config workspace inference is implemented. The server no longer requires explicit workspace roots and infers the TypeScript project root from the requested file path.
 
 ## Slice Index
 
@@ -15,6 +15,7 @@ Slice 5 semantic tools are implemented. First TypeScript semantic MCP tools are 
 | Slice 3 Config Roots Safety | Implemented | [spec](specs/2026-06-07-slice-3-config-roots-safety-design.md) | [plan](plans/2026-06-07-slice-3-config-roots-safety.md) | Not created yet |
 | Slice 4 LSP Initialization Foundation | Implemented | [spec](specs/2026-06-07-slice-4-lsp-initialization-foundation-design.md) | [plan](plans/2026-06-07-slice-4-lsp-initialization-foundation.md) | `Projects/lsp-mcp/lsp-mcp Slice 4 LSP Initialization Foundation.md` |
 | Slice 5 Semantic Tools | Implemented | [spec](specs/2026-06-08-slice-5-semantic-tools-design.md) | [plan](plans/2026-06-08-slice-5-semantic-tools.md) | Not created yet |
+| Slice 6 Zero-Config Workspace Inference | Implemented | [spec](specs/2026-06-09-slice-6-zero-config-workspace-inference-design.md) | [plan](plans/2026-06-09-slice-6-zero-config-workspace-inference.md) | Not created yet |
 
 ## Tracking Rule
 
