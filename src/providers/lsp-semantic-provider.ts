@@ -1,9 +1,14 @@
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Hover, MarkupContent } from "vscode-languageserver-protocol";
 import {
+  requestCallHierarchyIncoming,
+  requestCallHierarchyOutgoing,
   requestDefinition,
   requestHover,
+  requestPrepareCallHierarchy,
+  requestPrepareRename,
   requestReferences,
+  requestRename,
 } from "../lsp/semantic-requests.js";
 import type {
   EnsureSessionResult,
@@ -12,6 +17,9 @@ import type {
 import type {
   CapabilitiesInfo,
   CapabilitiesRequest,
+  CallHierarchyItemInfo,
+  CallHierarchyRequest,
+  CallHierarchyResult,
   DefinitionResult,
   DiagnosticsRequest,
   DiagnosticsResult,
@@ -20,6 +28,9 @@ import type {
   HealthRequest,
   HoverResult,
   ReferencesResult,
+  RenameLocation,
+  RenameRequest,
+  RenameResult,
   SemanticProvider,
   SetupErrorInfo,
 } from "./semantic-provider.js";
@@ -31,7 +42,23 @@ const supportedTools = [
   "find_references",
   "hover",
   "diagnostics",
+  "rename",
+  "call_hierarchy",
 ];
+
+const SYMBOL_KIND_NAMES: Record<number, string> = {
+  1: "file", 2: "module", 3: "namespace", 4: "package",
+  5: "class", 6: "method", 7: "property", 8: "field",
+  9: "constructor", 10: "enum", 11: "interface", 12: "function",
+  13: "variable", 14: "constant", 15: "string", 16: "number",
+  17: "boolean", 18: "array", 19: "object", 20: "key",
+  21: "null", 22: "enum-member", 23: "struct", 24: "event",
+  25: "operator", 26: "type-parameter",
+};
+
+function symbolKindName(kind: number): string {
+  return SYMBOL_KIND_NAMES[kind] ?? "unknown";
+}
 
 interface LspProviderSessionInfo {
   state: HealthInfo["status"];
@@ -262,6 +289,131 @@ export class LspSemanticProvider implements SemanticProvider {
     }
 
     return { diagnostics: allDiagnostics };
+  }
+
+  async getRename(request: RenameRequest): Promise<RenameResult> {
+    const { info, session } = await this.manager.ensureSession(request.file);
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const uri = pathToFileURL(request.file).toString();
+    const position = {
+      line: request.line - 1,
+      character: request.column - 1,
+    };
+    const languageId = languageIdForFile(request.file);
+
+    await session.prepareFile(request.file, languageId);
+
+    const connection = session.getConnection();
+    if (connection === undefined) throw new Error("LSP connection unavailable.");
+
+    const prepared = await requestPrepareRename(connection, uri, position);
+    if (prepared === null) {
+      return {
+        canRename: false,
+        reason: "This symbol cannot be renamed.",
+        locations: [],
+      };
+    }
+
+    const displayName =
+      prepared !== null &&
+      typeof prepared === "object" &&
+      "placeholder" in (prepared as object)
+        ? String((prepared as { placeholder: string }).placeholder)
+        : undefined;
+
+    const edit = await requestRename(connection, uri, position, request.newName);
+    if (edit === null) {
+      return {
+        canRename: false,
+        reason: "Rename returned no edits.",
+        locations: [],
+      };
+    }
+
+    const locations: RenameLocation[] = [];
+    for (const [docUri, edits] of Object.entries(edit.changes ?? {})) {
+      const file = fileURLToPath(docUri);
+      for (const textEdit of edits) {
+        locations.push({
+          file,
+          line: textEdit.range.start.line + 1,
+          column: textEdit.range.start.character + 1,
+          endLine: textEdit.range.end.line + 1,
+          endColumn: textEdit.range.end.character + 1,
+        });
+      }
+    }
+
+    return { canRename: true, displayName, locations };
+  }
+
+  async getCallHierarchy(request: CallHierarchyRequest): Promise<CallHierarchyResult> {
+    const { info, session } = await this.manager.ensureSession(request.file);
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const uri = pathToFileURL(request.file).toString();
+    const position = {
+      line: request.line - 1,
+      character: request.column - 1,
+    };
+
+    await session.prepareFile(request.file, languageIdForFile(request.file));
+
+    const connection = session.getConnection();
+    if (connection === undefined) throw new Error("LSP connection unavailable.");
+
+    const items = await requestPrepareCallHierarchy(connection, uri, position);
+    if (!items || items.length === 0) {
+      return { item: null };
+    }
+
+    const lspItem = items[0];
+    const item: CallHierarchyItemInfo = {
+      name: lspItem.name,
+      kind: symbolKindName(lspItem.kind),
+      file: fileURLToPath(lspItem.uri),
+      line: lspItem.selectionRange.start.line + 1,
+      column: lspItem.selectionRange.start.character + 1,
+      containerName: lspItem.detail ?? undefined,
+    };
+
+    const result: CallHierarchyResult = { item };
+
+    if (request.direction === "incoming" || request.direction === "both") {
+      const incomingLsp = await requestCallHierarchyIncoming(connection, lspItem);
+      result.incoming = (incomingLsp ?? []).map((c) => ({
+        from: {
+          name: c.from.name,
+          kind: symbolKindName(c.from.kind),
+          file: fileURLToPath(c.from.uri),
+          line: c.from.selectionRange.start.line + 1,
+          column: c.from.selectionRange.start.character + 1,
+          containerName: c.from.detail ?? undefined,
+        },
+      }));
+    }
+
+    if (request.direction === "outgoing" || request.direction === "both") {
+      const outgoingLsp = await requestCallHierarchyOutgoing(connection, lspItem);
+      result.outgoing = (outgoingLsp ?? []).map((c) => ({
+        to: {
+          name: c.to.name,
+          kind: symbolKindName(c.to.kind),
+          file: fileURLToPath(c.to.uri),
+          line: c.to.selectionRange.start.line + 1,
+          column: c.to.selectionRange.start.character + 1,
+          containerName: c.to.detail ?? undefined,
+        },
+      }));
+    }
+
+    return result;
   }
 }
 

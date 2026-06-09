@@ -89,6 +89,8 @@ describe("LspSemanticProvider", () => {
         "find_references",
         "hover",
         "diagnostics",
+        "rename",
+        "call_hierarchy",
       ],
       lsp: "implemented",
       serverCapabilities,
@@ -187,5 +189,55 @@ describe("LspSemanticProvider", () => {
 
     expect(result.diagnostics).toHaveLength(1);
     expect(result.diagnostics[0]?.code).toBe(2322);
+  });
+
+  it("includes rename and call_hierarchy in supported tools", async () => {
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: {
+          state: "ready" as const,
+          message: "TypeScript LSP initialized.",
+          serverCapabilities: [],
+        },
+        session: {},
+      }),
+    };
+    const provider = new LspSemanticProvider({ manager });
+
+    const caps = await provider.getCapabilities({ check: true, file: "src/index.ts" });
+    expect(caps.supportedTools).toContain("rename");
+    expect(caps.supportedTools).toContain("call_hierarchy");
+  });
+
+  it("getRename returns canRename=false when prepareRename returns null", async () => {
+    const mockConnection = {
+      listen: vi.fn(),
+      sendRequest: vi.fn().mockResolvedValue(null),
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      onNotification: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        session: {
+          getConnection: vi.fn(() => mockConnection),
+          prepareFile: vi.fn().mockResolvedValue("opened"),
+        },
+      }),
+    };
+    const provider = new LspSemanticProvider({ manager });
+
+    const result = await provider.getRename({
+      file: "/tmp/a.ts",
+      line: 1,
+      column: 1,
+      newName: "newName",
+    });
+
+    expect(result.canRename).toBe(false);
+    expect(result.locations).toHaveLength(0);
   });
 });
