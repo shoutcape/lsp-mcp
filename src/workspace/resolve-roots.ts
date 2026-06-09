@@ -19,16 +19,6 @@ export type ResolveWorkspaceRootsResult =
 export function resolveWorkspaceRoots(
   options: ResolveWorkspaceRootsOptions,
 ): ResolveWorkspaceRootsResult {
-  if (options.roots.length === 0) {
-    return {
-      ok: false,
-      error: {
-        code: "no_workspace_roots",
-        message: "No workspace roots configured.",
-      },
-    };
-  }
-
   const baseDir = path.resolve(options.baseDir);
 
   return {
