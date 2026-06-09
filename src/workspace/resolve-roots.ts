@@ -16,9 +16,10 @@ export type ResolveWorkspaceRootsResult =
   | { ok: true; roots: WorkspaceRoot[] }
   | { ok: false; error: WorkspaceRootResolutionError };
 
-export function resolveWorkspaceRoots(
-  options: ResolveWorkspaceRootsOptions,
-): ResolveWorkspaceRootsResult {
+export function resolveWorkspaceRoots(options: ResolveWorkspaceRootsOptions): {
+  ok: true;
+  roots: WorkspaceRoot[];
+} {
   const baseDir = path.resolve(options.baseDir);
 
   return {

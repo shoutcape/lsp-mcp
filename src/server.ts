@@ -138,21 +138,17 @@ export async function createDefaultProvider(): Promise<SemanticProvider> {
     return createSetupErrorProvider("TypeScript language support is disabled.");
   }
 
-  const rootsResult = resolveWorkspaceRoots({
+  const roots = resolveWorkspaceRoots({
     roots: configResult.config.roots,
     baseDir: configResult.baseDir,
   });
-
-  if (!rootsResult.ok) {
-    return createSetupErrorProvider(rootsResult.error.message);
-  }
 
   const preset = createTypeScriptPreset(
     configResult.config.languages.typescript,
   );
   const manager = new LspSessionManager({
     command: preset.getCommand(),
-    roots: rootsResult.roots,
+    roots: roots.roots,
     preset,
   });
 
