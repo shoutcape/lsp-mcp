@@ -1,10 +1,10 @@
 import {
-  CallHierarchyIncomingCallsRequest,
-  CallHierarchyOutgoingCallsRequest,
-  CallHierarchyPrepareRequest,
   type CallHierarchyIncomingCall,
+  CallHierarchyIncomingCallsRequest,
   type CallHierarchyItem,
   type CallHierarchyOutgoingCall,
+  CallHierarchyOutgoingCallsRequest,
+  CallHierarchyPrepareRequest,
   type Definition,
   DefinitionRequest,
   type Hover,

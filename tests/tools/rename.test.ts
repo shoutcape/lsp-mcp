@@ -18,9 +18,27 @@ describe("formatRenameResult", () => {
       canRename: true,
       displayName: "add",
       locations: [
-        { file: "/src/utils.ts", line: 2, column: 17, endLine: 2, endColumn: 20 },
-        { file: "/src/index.ts", line: 1, column: 10, endLine: 1, endColumn: 13 },
-        { file: "/src/index.ts", line: 3, column: 16, endLine: 3, endColumn: 19 },
+        {
+          file: "/src/utils.ts",
+          line: 2,
+          column: 17,
+          endLine: 2,
+          endColumn: 20,
+        },
+        {
+          file: "/src/index.ts",
+          line: 1,
+          column: 10,
+          endLine: 1,
+          endColumn: 13,
+        },
+        {
+          file: "/src/index.ts",
+          line: 3,
+          column: 16,
+          endLine: 3,
+          endColumn: 19,
+        },
       ],
     };
     const text = formatRenameResult(request, result);

@@ -22,12 +22,30 @@ describe("formatCallHierarchyResult", () => {
 
   it("formats incoming calls", () => {
     const result: CallHierarchyResult = {
-      item: { name: "add", kind: "function", file: "/src/utils.ts", line: 2, column: 17 },
+      item: {
+        name: "add",
+        kind: "function",
+        file: "/src/utils.ts",
+        line: 2,
+        column: 17,
+      },
       incoming: [
-        { from: { name: "main", kind: "function", file: "/src/index.ts", line: 6, column: 1, containerName: "<module>" } },
+        {
+          from: {
+            name: "main",
+            kind: "function",
+            file: "/src/index.ts",
+            line: 6,
+            column: 1,
+            containerName: "<module>",
+          },
+        },
       ],
     };
-    const text = formatCallHierarchyResult({ ...request, direction: "incoming" }, result);
+    const text = formatCallHierarchyResult(
+      { ...request, direction: "incoming" },
+      result,
+    );
     expect(text).toContain("add [function]");
     expect(text).toContain("Incoming calls (1)");
     expect(text).toContain("<- main");
@@ -37,13 +55,38 @@ describe("formatCallHierarchyResult", () => {
 
   it("formats outgoing calls", () => {
     const result: CallHierarchyResult = {
-      item: { name: "main", kind: "function", file: "/src/index.ts", line: 6, column: 1 },
+      item: {
+        name: "main",
+        kind: "function",
+        file: "/src/index.ts",
+        line: 6,
+        column: 1,
+      },
       outgoing: [
-        { to: { name: "add", kind: "function", file: "/src/utils.ts", line: 2, column: 17 } },
-        { to: { name: "createGreeting", kind: "function", file: "/src/utils.ts", line: 12, column: 1 } },
+        {
+          to: {
+            name: "add",
+            kind: "function",
+            file: "/src/utils.ts",
+            line: 2,
+            column: 17,
+          },
+        },
+        {
+          to: {
+            name: "createGreeting",
+            kind: "function",
+            file: "/src/utils.ts",
+            line: 12,
+            column: 1,
+          },
+        },
       ],
     };
-    const text = formatCallHierarchyResult({ ...request, direction: "outgoing" }, result);
+    const text = formatCallHierarchyResult(
+      { ...request, direction: "outgoing" },
+      result,
+    );
     expect(text).toContain("Outgoing calls (2)");
     expect(text).toContain("-> add [function]");
     expect(text).toContain("-> createGreeting [function]");
@@ -51,8 +94,24 @@ describe("formatCallHierarchyResult", () => {
 
   it("shows both incoming and outgoing", () => {
     const result: CallHierarchyResult = {
-      item: { name: "add", kind: "function", file: "/src/utils.ts", line: 2, column: 17 },
-      incoming: [{ from: { name: "main", kind: "function", file: "/src/index.ts", line: 6, column: 1 } }],
+      item: {
+        name: "add",
+        kind: "function",
+        file: "/src/utils.ts",
+        line: 2,
+        column: 17,
+      },
+      incoming: [
+        {
+          from: {
+            name: "main",
+            kind: "function",
+            file: "/src/index.ts",
+            line: 6,
+            column: 1,
+          },
+        },
+      ],
       outgoing: [],
     };
     const text = formatCallHierarchyResult(request, result);

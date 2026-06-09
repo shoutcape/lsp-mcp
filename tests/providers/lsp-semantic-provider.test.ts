@@ -205,7 +205,10 @@ describe("LspSemanticProvider", () => {
     };
     const provider = new LspSemanticProvider({ manager });
 
-    const caps = await provider.getCapabilities({ check: true, file: "src/index.ts" });
+    const caps = await provider.getCapabilities({
+      check: true,
+      file: "src/index.ts",
+    });
     expect(caps.supportedTools).toContain("rename");
     expect(caps.supportedTools).toContain("call_hierarchy");
   });
@@ -221,7 +224,11 @@ describe("LspSemanticProvider", () => {
     const manager: LspProviderSessionManager = {
       getSummary: vi.fn(),
       ensureSession: vi.fn().mockResolvedValue({
-        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        info: {
+          state: "ready" as const,
+          message: "ready",
+          serverCapabilities: [],
+        },
         session: {
           getConnection: vi.fn(() => mockConnection),
           prepareFile: vi.fn().mockResolvedValue("opened"),

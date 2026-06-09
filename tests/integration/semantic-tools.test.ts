@@ -148,7 +148,11 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
       manager: {
         getSummary() {
           const info = session.getInfo();
-          return { state: info.state, message: info.message, serverCapabilities: info.serverCapabilities };
+          return {
+            state: info.state,
+            message: info.message,
+            serverCapabilities: info.serverCapabilities,
+          };
         },
         async ensureSession() {
           return { info: session.getInfo(), session };
@@ -178,7 +182,11 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
       manager: {
         getSummary() {
           const info = session.getInfo();
-          return { state: info.state, message: info.message, serverCapabilities: info.serverCapabilities };
+          return {
+            state: info.state,
+            message: info.message,
+            serverCapabilities: info.serverCapabilities,
+          };
         },
         async ensureSession() {
           return { info: session.getInfo(), session };
@@ -196,8 +204,10 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
     expect(result.item).not.toBeNull();
     expect(result.item?.name).toBe("add");
     expect(result.incoming).toBeDefined();
-    expect(result.incoming!.length).toBeGreaterThan(0);
-    expect(result.incoming!.some((c) => c.from.file.includes("index.ts"))).toBe(true);
+    expect(result.incoming?.length).toBeGreaterThan(0);
+    expect(result.incoming?.some((c) => c.from.file.includes("index.ts"))).toBe(
+      true,
+    );
   }, 15_000);
 
   it("call hierarchy outgoing on main returns add and createGreeting callees", async () => {
@@ -208,7 +218,11 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
       manager: {
         getSummary() {
           const info = session.getInfo();
-          return { state: info.state, message: info.message, serverCapabilities: info.serverCapabilities };
+          return {
+            state: info.state,
+            message: info.message,
+            serverCapabilities: info.serverCapabilities,
+          };
         },
         async ensureSession() {
           return { info: session.getInfo(), session };
@@ -229,6 +243,6 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
     expect(result.item).not.toBeNull();
     expect(result.item?.name).toBe("main");
     expect(result.outgoing).toBeDefined();
-    expect(result.outgoing!.length).toBeGreaterThan(0);
+    expect(result.outgoing?.length).toBeGreaterThan(0);
   }, 15_000);
 });

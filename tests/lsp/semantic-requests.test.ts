@@ -83,11 +83,17 @@ describe("requestHover", () => {
 
 describe("requestPrepareRename", () => {
   it("sends textDocument/prepareRename", async () => {
-    const conn = mockConnection({ start: { line: 1, character: 4 }, end: { line: 1, character: 7 } });
+    const conn = mockConnection({
+      start: { line: 1, character: 4 },
+      end: { line: 1, character: 7 },
+    });
     await requestPrepareRename(conn, "file:///a.ts", { line: 1, character: 4 });
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "textDocument/prepareRename" }),
-      { textDocument: { uri: "file:///a.ts" }, position: { line: 1, character: 4 } },
+      {
+        textDocument: { uri: "file:///a.ts" },
+        position: { line: 1, character: 4 },
+      },
     );
   });
 });
@@ -95,10 +101,19 @@ describe("requestPrepareRename", () => {
 describe("requestRename", () => {
   it("sends textDocument/rename with newName", async () => {
     const conn = mockConnection({ changes: {} });
-    await requestRename(conn, "file:///a.ts", { line: 1, character: 4 }, "newName");
+    await requestRename(
+      conn,
+      "file:///a.ts",
+      { line: 1, character: 4 },
+      "newName",
+    );
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "textDocument/rename" }),
-      { textDocument: { uri: "file:///a.ts" }, position: { line: 1, character: 4 }, newName: "newName" },
+      {
+        textDocument: { uri: "file:///a.ts" },
+        position: { line: 1, character: 4 },
+        newName: "newName",
+      },
     );
   });
 });
@@ -106,17 +121,35 @@ describe("requestRename", () => {
 describe("requestPrepareCallHierarchy", () => {
   it("sends textDocument/prepareCallHierarchy", async () => {
     const conn = mockConnection([]);
-    await requestPrepareCallHierarchy(conn, "file:///a.ts", { line: 5, character: 10 });
+    await requestPrepareCallHierarchy(conn, "file:///a.ts", {
+      line: 5,
+      character: 10,
+    });
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "textDocument/prepareCallHierarchy" }),
-      { textDocument: { uri: "file:///a.ts" }, position: { line: 5, character: 10 } },
+      {
+        textDocument: { uri: "file:///a.ts" },
+        position: { line: 5, character: 10 },
+      },
     );
   });
 });
 
 describe("requestCallHierarchyIncoming", () => {
   it("sends callHierarchy/incomingCalls with item", async () => {
-    const item = { name: "add", kind: 12, uri: "file:///a.ts", range: { start: { line: 1, character: 0 }, end: { line: 3, character: 1 } }, selectionRange: { start: { line: 1, character: 9 }, end: { line: 1, character: 12 } } };
+    const item = {
+      name: "add",
+      kind: 12,
+      uri: "file:///a.ts",
+      range: {
+        start: { line: 1, character: 0 },
+        end: { line: 3, character: 1 },
+      },
+      selectionRange: {
+        start: { line: 1, character: 9 },
+        end: { line: 1, character: 12 },
+      },
+    };
     const conn = mockConnection([]);
     await requestCallHierarchyIncoming(conn, item as any);
     expect(conn.sendRequest).toHaveBeenCalledWith(
@@ -128,7 +161,19 @@ describe("requestCallHierarchyIncoming", () => {
 
 describe("requestCallHierarchyOutgoing", () => {
   it("sends callHierarchy/outgoingCalls with item", async () => {
-    const item = { name: "main", kind: 12, uri: "file:///a.ts", range: { start: { line: 5, character: 0 }, end: { line: 7, character: 1 } }, selectionRange: { start: { line: 5, character: 9 }, end: { line: 5, character: 13 } } };
+    const item = {
+      name: "main",
+      kind: 12,
+      uri: "file:///a.ts",
+      range: {
+        start: { line: 5, character: 0 },
+        end: { line: 7, character: 1 },
+      },
+      selectionRange: {
+        start: { line: 5, character: 9 },
+        end: { line: 5, character: 13 },
+      },
+    };
     const conn = mockConnection([]);
     await requestCallHierarchyOutgoing(conn, item as any);
     expect(conn.sendRequest).toHaveBeenCalledWith(

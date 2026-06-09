@@ -44,14 +44,14 @@ export function formatRenameResult(
     }
   }
 
-  lines.push(`\nApply: Replace the old name with "${request.newName}" at each location above.`);
+  lines.push(
+    `\nApply: Replace the old name with "${request.newName}" at each location above.`,
+  );
   return lines.join("\n");
 }
 
 export function createRenameTool(provider: SemanticProvider) {
-  return async function rename(
-    input: RenameRequest,
-  ): Promise<CallToolResult> {
+  return async function rename(input: RenameRequest): Promise<CallToolResult> {
     const result = await provider.getRename(input);
     return textResult(formatRenameResult(input, result));
   };

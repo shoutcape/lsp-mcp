@@ -1,5 +1,4 @@
 import type {
-  CallHierarchyRequest,
   CallHierarchyResult,
   CapabilitiesInfo,
   CapabilitiesRequest,
@@ -9,7 +8,6 @@ import type {
   HealthRequest,
   HoverResult,
   ReferencesResult,
-  RenameRequest,
   RenameResult,
   SemanticProvider,
 } from "./semantic-provider.js";

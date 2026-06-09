@@ -15,11 +15,11 @@ import type {
   LspSessionManager,
 } from "../lsp/session-manager.js";
 import type {
-  CapabilitiesInfo,
-  CapabilitiesRequest,
   CallHierarchyItemInfo,
   CallHierarchyRequest,
   CallHierarchyResult,
+  CapabilitiesInfo,
+  CapabilitiesRequest,
   DefinitionResult,
   DiagnosticsRequest,
   DiagnosticsResult,
@@ -47,13 +47,32 @@ const supportedTools = [
 ];
 
 const SYMBOL_KIND_NAMES: Record<number, string> = {
-  1: "file", 2: "module", 3: "namespace", 4: "package",
-  5: "class", 6: "method", 7: "property", 8: "field",
-  9: "constructor", 10: "enum", 11: "interface", 12: "function",
-  13: "variable", 14: "constant", 15: "string", 16: "number",
-  17: "boolean", 18: "array", 19: "object", 20: "key",
-  21: "null", 22: "enum-member", 23: "struct", 24: "event",
-  25: "operator", 26: "type-parameter",
+  1: "file",
+  2: "module",
+  3: "namespace",
+  4: "package",
+  5: "class",
+  6: "method",
+  7: "property",
+  8: "field",
+  9: "constructor",
+  10: "enum",
+  11: "interface",
+  12: "function",
+  13: "variable",
+  14: "constant",
+  15: "string",
+  16: "number",
+  17: "boolean",
+  18: "array",
+  19: "object",
+  20: "key",
+  21: "null",
+  22: "enum-member",
+  23: "struct",
+  24: "event",
+  25: "operator",
+  26: "type-parameter",
 };
 
 function symbolKindName(kind: number): string {
@@ -307,7 +326,8 @@ export class LspSemanticProvider implements SemanticProvider {
     await session.prepareFile(request.file, languageId);
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const prepared = await requestPrepareRename(connection, uri, position);
     if (prepared === null) {
@@ -325,7 +345,12 @@ export class LspSemanticProvider implements SemanticProvider {
         ? String((prepared as { placeholder: string }).placeholder)
         : undefined;
 
-    const edit = await requestRename(connection, uri, position, request.newName);
+    const edit = await requestRename(
+      connection,
+      uri,
+      position,
+      request.newName,
+    );
     if (edit === null) {
       return {
         canRename: false,
@@ -351,7 +376,9 @@ export class LspSemanticProvider implements SemanticProvider {
     return { canRename: true, displayName, locations };
   }
 
-  async getCallHierarchy(request: CallHierarchyRequest): Promise<CallHierarchyResult> {
+  async getCallHierarchy(
+    request: CallHierarchyRequest,
+  ): Promise<CallHierarchyResult> {
     const { info, session } = await this.manager.ensureSession(request.file);
     if (info.state !== "ready") {
       throw new Error(`LSP session not ready: ${info.message}`);
@@ -366,7 +393,8 @@ export class LspSemanticProvider implements SemanticProvider {
     await session.prepareFile(request.file, languageIdForFile(request.file));
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const items = await requestPrepareCallHierarchy(connection, uri, position);
     if (!items || items.length === 0) {
@@ -386,7 +414,10 @@ export class LspSemanticProvider implements SemanticProvider {
     const result: CallHierarchyResult = { item };
 
     if (request.direction === "incoming" || request.direction === "both") {
-      const incomingLsp = await requestCallHierarchyIncoming(connection, lspItem);
+      const incomingLsp = await requestCallHierarchyIncoming(
+        connection,
+        lspItem,
+      );
       result.incoming = (incomingLsp ?? []).map((c) => ({
         from: {
           name: c.from.name,
@@ -400,7 +431,10 @@ export class LspSemanticProvider implements SemanticProvider {
     }
 
     if (request.direction === "outgoing" || request.direction === "both") {
-      const outgoingLsp = await requestCallHierarchyOutgoing(connection, lspItem);
+      const outgoingLsp = await requestCallHierarchyOutgoing(
+        connection,
+        lspItem,
+      );
       result.outgoing = (outgoingLsp ?? []).map((c) => ({
         to: {
           name: c.to.name,
