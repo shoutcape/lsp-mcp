@@ -5,16 +5,10 @@ import { describe, expect, it } from "vitest";
 import { resolveWorkspaceRoots } from "../../src/workspace/resolve-roots.js";
 
 describe("resolveWorkspaceRoots", () => {
-  it("returns an explicit setup error when no roots are configured", () => {
+  it("returns empty roots when input is empty", () => {
     const result = resolveWorkspaceRoots({ roots: [], baseDir: "/repo" });
 
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "no_workspace_roots",
-        message: "No workspace roots configured.",
-      },
-    });
+    expect(result).toEqual({ ok: true, roots: [] });
   });
 
   it("resolves relative roots against the explicit base directory", () => {

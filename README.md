@@ -8,7 +8,7 @@ The MVP starts with TypeScript and JavaScript through `typescript-language-serve
 
 ## Status
 
-Slice 5 semantic tools are implemented. The server provides 6 MCP tools:
+Slice 6 zero-config workspace inference is implemented. The server provides 6 MCP tools:
 
 - `health` - Server and LSP health status
 - `capabilities` - List available tools and LSP capabilities
@@ -34,17 +34,32 @@ Or use with npx in your MCP client config:
   "mcpServers": {
     "lsp": {
       "command": "npx",
-      "args": ["-y", "@shoutcape/lsp-mcp"],
-      "env": {
-        "LSP_WORKSPACE": "/path/to/your/project"
-      }
+      "args": ["-y", "@shoutcape/lsp-mcp"]
     }
   }
 }
 ```
 
+No configuration required. When a tool is called with a file path, lsp-mcp
+walks up from that file to find the nearest `tsconfig.json` or `package.json`
+and uses it as the project root. A language server session is created per
+project and cached for subsequent requests.
+
+**Optional: explicit workspace roots**
+
+Create `lsp-mcp.config.jsonc` in your project root to configure explicit
+workspace roots. This enables path safety checks (requests outside the
+configured roots are rejected) and is recommended when using lsp-mcp as a
+shared server across multiple projects:
+
+```jsonc
+{
+  "roots": ["."]
+}
+```
+
 Requirements:
-- `typescript-language-server` available in PATH (`npm install -g typescript-language-server`)
+- `typescript-language-server` in PATH (`npm install -g typescript-language-server`)
 - TypeScript installed in the target project (`npm install --save-dev typescript`)
 
 See:

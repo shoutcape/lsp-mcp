@@ -164,14 +164,21 @@ describe("MCP server", () => {
     await server.close();
   });
 
-  it("creates a default provider that surfaces setup errors", async () => {
-    const provider = await createDefaultProvider();
+  it("creates a default provider that starts in not_started state without config", async () => {
+    const cwd = process.cwd();
+    const emptyDir = await createTempDir();
 
-    await expect(provider.getHealth()).resolves.toEqual({
-      status: "failed",
-      message: "No workspace roots configured.",
-      setupError: { message: "No workspace roots configured." },
-    });
+    try {
+      process.chdir(emptyDir);
+
+      const provider = await createDefaultProvider();
+
+      const health = await provider.getHealth();
+      expect(health.status).toBe("not_started");
+      expect((health as { setupError?: unknown }).setupError).toBeUndefined();
+    } finally {
+      process.chdir(cwd);
+    }
   });
 
   it("creates a default provider that reports disabled TypeScript support", async () => {
