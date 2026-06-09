@@ -139,4 +139,96 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
     const second = await provider.getDiagnostics({ file: BROKEN_FILE });
     expect(second.diagnostics.some((d) => d.severity === "error")).toBe(true);
   }, 15_000);
+
+  it("rename add returns locations in utils.ts and index.ts", async () => {
+    await session.prepareFile(UTILS_FILE, "typescript");
+    await session.prepareFile(INDEX_FILE, "typescript");
+
+    const provider = new LspSemanticProvider({
+      manager: {
+        getSummary() {
+          const info = session.getInfo();
+          return { state: info.state, message: info.message, serverCapabilities: info.serverCapabilities };
+        },
+        async ensureSession() {
+          return { info: session.getInfo(), session };
+        },
+      },
+    });
+
+    const result = await provider.getRename({
+      file: UTILS_FILE,
+      line: 2,
+      column: 17,
+      newName: "sum",
+    });
+
+    expect(result.canRename).toBe(true);
+    expect(result.locations.length).toBeGreaterThanOrEqual(2);
+    const files = result.locations.map((l) => l.file);
+    expect(files.some((f) => f.includes("utils.ts"))).toBe(true);
+    expect(files.some((f) => f.includes("index.ts"))).toBe(true);
+  }, 15_000);
+
+  it("call hierarchy incoming on add returns callers from index.ts", async () => {
+    await session.prepareFile(UTILS_FILE, "typescript");
+    await session.prepareFile(INDEX_FILE, "typescript");
+
+    const provider = new LspSemanticProvider({
+      manager: {
+        getSummary() {
+          const info = session.getInfo();
+          return { state: info.state, message: info.message, serverCapabilities: info.serverCapabilities };
+        },
+        async ensureSession() {
+          return { info: session.getInfo(), session };
+        },
+      },
+    });
+
+    const result = await provider.getCallHierarchy({
+      file: UTILS_FILE,
+      line: 2,
+      column: 17,
+      direction: "incoming",
+    });
+
+    expect(result.item).not.toBeNull();
+    expect(result.item?.name).toBe("add");
+    expect(result.incoming).toBeDefined();
+    expect(result.incoming!.length).toBeGreaterThan(0);
+    expect(result.incoming!.some((c) => c.from.file.includes("index.ts"))).toBe(true);
+  }, 15_000);
+
+  it("call hierarchy outgoing on main returns add and createGreeting callees", async () => {
+    await session.prepareFile(INDEX_FILE, "typescript");
+    await session.prepareFile(UTILS_FILE, "typescript");
+
+    const provider = new LspSemanticProvider({
+      manager: {
+        getSummary() {
+          const info = session.getInfo();
+          return { state: info.state, message: info.message, serverCapabilities: info.serverCapabilities };
+        },
+        async ensureSession() {
+          return { info: session.getInfo(), session };
+        },
+      },
+    });
+
+    // index.ts line 6: `export function main(): void {`
+    // "main" at col 17 (1-based)
+    // main body calls console.log - that is the outgoing callee
+    const result = await provider.getCallHierarchy({
+      file: INDEX_FILE,
+      line: 6,
+      column: 17,
+      direction: "outgoing",
+    });
+
+    expect(result.item).not.toBeNull();
+    expect(result.item?.name).toBe("main");
+    expect(result.outgoing).toBeDefined();
+    expect(result.outgoing!.length).toBeGreaterThan(0);
+  }, 15_000);
 });
