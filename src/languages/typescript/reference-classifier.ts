@@ -22,12 +22,26 @@ interface Span {
 
 export function classifyReferences(input: ClassifyInput): ReferenceKind[] {
   const spans = extractSpans(input.lines);
-  return input.refs.map((ref) => classifyOne(ref, input.lines, spans, input));
+  return input.refs.map((ref) => classifyOne(ref, spans, input));
+}
+
+// Strip a leading generic type parameter `<...>` handling nested generics.
+// Returns the input unchanged if it doesn't start with `<` or has an unclosed generic.
+function stripLeadingGeneric(s: string): string {
+  if (s[0] !== "<") return s;
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "<") depth++;
+    else if (s[i] === ">") {
+      depth--;
+      if (depth === 0) return s.slice(i + 1);
+    }
+  }
+  return s; // unclosed generic - don't strip
 }
 
 function classifyOne(
   ref: { line: number; column: number },
-  lines: string[],
   spans: Span[],
   input: ClassifyInput,
 ): ReferenceKind {
@@ -46,7 +60,7 @@ function classifyOne(
     if (ref.line >= span.startLine && ref.line <= span.endLine) {
       // Check for inline `type` keyword before the ref name within import spans
       if (span.kind === "import") {
-        const lineText = lines[ref.line - 1] ?? "";
+        const lineText = input.lines[ref.line - 1] ?? "";
         // Strip the partial identifier at ref position, then check for `type` keyword
         const before = lineText.slice(0, ref.column - 1).replace(/[A-Za-z_$][\w$]*$/, "");
         if (/\btype\s+$/.test(before)) {
@@ -58,7 +72,7 @@ function classifyOne(
   }
 
   // 3. JSX: character immediately before the ref on the same line is "<"
-  const lineText = lines[ref.line - 1] ?? "";
+  const lineText = input.lines[ref.line - 1] ?? "";
   const charBefore = lineText[ref.column - 2]; // column is 1-based, so -2 for preceding char
   if (charBefore === "<") {
     return "jsx";
@@ -66,8 +80,8 @@ function classifyOne(
 
   // 4. Call: after the ref token, the next non-whitespace/generic char is "("
   const afterRef = lineText.slice(ref.column - 1);
-  // Strip an optional generic type parameter `<...>` before checking for "("
-  const afterGeneric = afterRef.replace(/^[A-Za-z_$][\w$]*/, "").replace(/^<[^>]*>/, "");
+  const afterIdentifier = afterRef.replace(/^[A-Za-z_$][\w$]*/, "");
+  const afterGeneric = stripLeadingGeneric(afterIdentifier);
   if (afterGeneric.trimStart().startsWith("(")) {
     return "call";
   }
@@ -86,7 +100,7 @@ function extractSpans(lines: string[]): Span[] {
 
     // Match import or export statement start
     const importMatch = /^import\s+(type\s+)?/.exec(trimmed);
-    const exportMatch = !importMatch && /^export\s+\{/.exec(trimmed);
+    const exportMatch = !importMatch && /^export\s+(type\s+)?\{/.exec(trimmed);
 
     if (importMatch || exportMatch) {
       const isTypeImport = importMatch !== null && importMatch[1] !== undefined;

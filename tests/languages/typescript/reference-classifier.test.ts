@@ -112,4 +112,17 @@ describe("classifyReferences", () => {
     );
     expect(result[0]).toBe("definition");
   });
+
+  it("tags call with nested generic as call", () => {
+    const src = `const x = fn<Map<string, number>>(arg);`;
+    // "fn" at col 11
+    const result = classifyReferences(input(src, [{ line: 1, column: 11 }]));
+    expect(result[0]).toBe("call");
+  });
+
+  it("tags reference inside export type block as export", () => {
+    const src = `export type { ButtonProps } from "./Button";`;
+    const result = classifyReferences(input(src, [{ line: 1, column: 15 }]));
+    expect(result[0]).toBe("export");
+  });
 });
