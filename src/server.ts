@@ -211,9 +211,9 @@ export function createServer(
   return server;
 }
 
-export async function createDefaultProvider(): Promise<SemanticProvider> {
-  const configResult = await loadConfig();
-
+function createProviderFromConfig(
+  configResult: Awaited<ReturnType<typeof loadConfig>>,
+): SemanticProvider {
   if (!configResult.ok) {
     return createSetupErrorProvider(configResult.error.message);
   }
@@ -239,9 +239,14 @@ export async function createDefaultProvider(): Promise<SemanticProvider> {
   return new LspSemanticProvider({ manager });
 }
 
-export async function startStdioServer(): Promise<void> {
-  const provider = await createDefaultProvider();
+export async function createDefaultProvider(): Promise<SemanticProvider> {
   const configResult = await loadConfig();
+  return createProviderFromConfig(configResult);
+}
+
+export async function startStdioServer(): Promise<void> {
+  const configResult = await loadConfig();
+  const provider = createProviderFromConfig(configResult);
   const outputLimit =
     configResult.ok ? configResult.config.output?.defaultLimit : undefined;
   const server = createServer({ provider }, { outputLimit });

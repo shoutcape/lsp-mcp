@@ -211,6 +211,10 @@ describe("MCP server", () => {
 });
 
 describe("withInstrumentation", () => {
+  afterEach(() => {
+    delete process.env.LSP_MCP_DEBUG;
+  });
+
   it("does not emit to stderr when LSP_MCP_DEBUG is unset", async () => {
     const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     delete process.env.LSP_MCP_DEBUG;
@@ -238,7 +242,6 @@ describe("withInstrumentation", () => {
 
     expect(stderrWrite).toHaveBeenCalledWith(expect.stringContaining("test_tool"));
     expect(stdoutWrite).not.toHaveBeenCalled();
-    delete process.env.LSP_MCP_DEBUG;
     stderrWrite.mockRestore();
     stdoutWrite.mockRestore();
   });
