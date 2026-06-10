@@ -247,4 +247,107 @@ describe("LspSemanticProvider", () => {
     expect(result.canRename).toBe(false);
     expect(result.locations).toHaveLength(0);
   });
+
+  it("getReferences returns kind on each entry", async () => {
+    // Source with a known import reference
+    const mockFileContent = `import { add } from "./utils";\nconst x = add(1,2);`;
+    const mockConnection = {
+      listen: vi.fn(),
+      sendRequest: vi.fn().mockImplementation((method: { method: string }) => {
+        if (method.method === "textDocument/references") {
+          return Promise.resolve([
+            { uri: "file:///project/index.ts", range: { start: { line: 0, character: 9 }, end: { line: 0, character: 12 } } },
+            { uri: "file:///project/index.ts", range: { start: { line: 1, character: 10 }, end: { line: 1, character: 13 } } },
+          ]);
+        }
+        // definition request - return the second occurrence as "definition"
+        if (method.method === "textDocument/definition") {
+          return Promise.resolve([
+            { uri: "file:///project/utils.ts", range: { start: { line: 1, character: 16 }, end: { line: 1, character: 19 } } },
+          ]);
+        }
+        return Promise.resolve(null);
+      }),
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      onNotification: vi.fn(),
+      dispose: vi.fn(),
+    };
+
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        session: {
+          getConnection: vi.fn(() => mockConnection),
+          prepareFile: vi.fn().mockResolvedValue("opened"),
+        },
+      }),
+    };
+
+    // Inject readFile that returns our mock content for the index.ts file
+    const provider = new LspSemanticProvider({
+      manager,
+      readFile: async (_path: string) => mockFileContent,
+    });
+
+    const result = await provider.getReferences({
+      file: "/project/index.ts",
+      line: 1,
+      column: 10,
+    });
+
+    expect(result.references.length).toBe(2);
+    const kinds = result.references.map((r) => r.kind);
+    expect(kinds).toContain("import");
+    expect(kinds).toContain("call");
+  });
+
+  it("getReferences marks isDefinition=true when ref matches definition position", async () => {
+    const mockFileContent = `export function add(a: number): number { return a; }`;
+    const mockConnection = {
+      listen: vi.fn(),
+      sendRequest: vi.fn().mockImplementation((method: { method: string }) => {
+        if (method.method === "textDocument/references") {
+          return Promise.resolve([
+            { uri: "file:///project/utils.ts", range: { start: { line: 0, character: 16 }, end: { line: 0, character: 19 } } },
+          ]);
+        }
+        if (method.method === "textDocument/definition") {
+          return Promise.resolve([
+            { uri: "file:///project/utils.ts", range: { start: { line: 0, character: 16 }, end: { line: 0, character: 19 } } },
+          ]);
+        }
+        return Promise.resolve(null);
+      }),
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      onNotification: vi.fn(),
+      dispose: vi.fn(),
+    };
+
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        session: {
+          getConnection: vi.fn(() => mockConnection),
+          prepareFile: vi.fn().mockResolvedValue("opened"),
+        },
+      }),
+    };
+
+    const provider = new LspSemanticProvider({
+      manager,
+      readFile: async (_path: string) => mockFileContent,
+    });
+
+    const result = await provider.getReferences({
+      file: "/project/utils.ts",
+      line: 1,
+      column: 17,
+    });
+
+    expect(result.references.length).toBe(1);
+    expect(result.references[0]?.isDefinition).toBe(true);
+    expect(result.references[0]?.kind).toBe("definition");
+  });
 });
