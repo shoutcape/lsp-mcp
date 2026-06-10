@@ -85,6 +85,54 @@ export interface DiagnosticsRequest {
   files?: string[];
 }
 
+export interface RenameLocation {
+  file: string;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+  prefixText?: string;
+  suffixText?: string;
+}
+
+export interface RenameResult {
+  canRename: boolean;
+  displayName?: string;
+  reason?: string;
+  locations: RenameLocation[];
+}
+
+export interface RenameRequest extends FileLocation {
+  newName: string;
+}
+
+export interface CallHierarchyItemInfo {
+  name: string;
+  kind: string;
+  file: string;
+  line: number;
+  column: number;
+  containerName?: string;
+}
+
+export interface IncomingCallInfo {
+  from: CallHierarchyItemInfo;
+}
+
+export interface OutgoingCallInfo {
+  to: CallHierarchyItemInfo;
+}
+
+export interface CallHierarchyResult {
+  item: CallHierarchyItemInfo | null;
+  incoming?: IncomingCallInfo[];
+  outgoing?: OutgoingCallInfo[];
+}
+
+export interface CallHierarchyRequest extends FileLocation {
+  direction: "incoming" | "outgoing" | "both";
+}
+
 export interface SemanticProvider {
   getHealth(request?: HealthRequest): Promise<HealthInfo>;
   getCapabilities(request?: CapabilitiesRequest): Promise<CapabilitiesInfo>;
@@ -92,4 +140,6 @@ export interface SemanticProvider {
   getReferences(location: FileLocation): Promise<ReferencesResult>;
   getHover(location: FileLocation): Promise<HoverResult>;
   getDiagnostics(request: DiagnosticsRequest): Promise<DiagnosticsResult>;
+  getRename(request: RenameRequest): Promise<RenameResult>;
+  getCallHierarchy(request: CallHierarchyRequest): Promise<CallHierarchyResult>;
 }

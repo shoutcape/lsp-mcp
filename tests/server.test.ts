@@ -40,12 +40,14 @@ describe("MCP server", () => {
 
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
+      "call_hierarchy",
       "capabilities",
       "diagnostics",
       "find_references",
       "goto_definition",
       "health",
       "hover",
+      "rename",
     ]);
 
     const result = await client.callTool({ name: "health", arguments: {} });
@@ -79,7 +81,7 @@ describe("MCP server", () => {
             lsp: "not_implemented" as const,
           };
         },
-      },
+      } as import("../src/providers/semantic-provider.js").SemanticProvider,
     });
     const client = new Client({ name: "test-client", version: "0.0.0" });
     clients.push(client);
@@ -140,7 +142,7 @@ describe("MCP server", () => {
             lsp: "implemented" as const,
           };
         },
-      },
+      } as import("../src/providers/semantic-provider.js").SemanticProvider,
     });
     const client = new Client({ name: "test-client", version: "0.0.0" });
     clients.push(client);

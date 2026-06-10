@@ -1,4 +1,5 @@
 import type {
+  CallHierarchyResult,
   CapabilitiesInfo,
   CapabilitiesRequest,
   DefinitionResult,
@@ -7,6 +8,7 @@ import type {
   HealthRequest,
   HoverResult,
   ReferencesResult,
+  RenameResult,
   SemanticProvider,
 } from "./semantic-provider.js";
 
@@ -42,5 +44,13 @@ export class StaticSemanticProvider implements SemanticProvider {
 
   async getDiagnostics(): Promise<DiagnosticsResult> {
     return { diagnostics: [] };
+  }
+
+  async getRename(): Promise<RenameResult> {
+    return { canRename: false, reason: "Not implemented.", locations: [] };
+  }
+
+  async getCallHierarchy(): Promise<CallHierarchyResult> {
+    return { item: null };
   }
 }

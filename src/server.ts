@@ -12,6 +12,7 @@ import type {
   SetupErrorInfo,
 } from "./providers/semantic-provider.js";
 import { StaticSemanticProvider } from "./providers/static-semantic-provider.js";
+import { createCallHierarchyTool } from "./tools/call-hierarchy.js";
 import {
   capabilitiesToolInputSchema,
   createCapabilitiesTool,
@@ -21,6 +22,7 @@ import { createDiagnosticsTool } from "./tools/diagnostics.js";
 import { createHealthTool, healthToolInputSchema } from "./tools/health.js";
 import { createHoverTool } from "./tools/hover.js";
 import { createReferencesTool } from "./tools/references.js";
+import { createRenameTool } from "./tools/rename.js";
 import { resolveWorkspaceRoots } from "./workspace/resolve-roots.js";
 
 export const fileLocationInputSchema = {
@@ -35,6 +37,18 @@ export const diagnosticsInputSchema = {
     .array(z.string())
     .optional()
     .describe("Array of absolute file paths"),
+};
+
+export const renameInputSchema = {
+  ...fileLocationInputSchema,
+  newName: z.string().describe("New name for the symbol"),
+};
+
+export const callHierarchyInputSchema = {
+  ...fileLocationInputSchema,
+  direction: z
+    .enum(["incoming", "outgoing", "both"])
+    .describe("Direction of call hierarchy"),
 };
 
 export interface ServerDependencies {
@@ -122,6 +136,35 @@ export function createServer(dependencies: ServerDependencies = {}): McpServer {
       inputSchema: diagnosticsInputSchema,
     },
     createDiagnosticsTool(provider),
+  );
+
+  server.registerTool(
+    "rename",
+    {
+      description:
+        "Find all locations that must change to rename a symbol. " +
+        "Returns file paths and positions only - does NOT apply changes automatically. " +
+        "Use the Edit tool to apply the rename at each returned location. " +
+        "USE THIS INSTEAD OF grep+replace when renaming symbols - it understands scope and " +
+        "will not produce false positives from comments, strings, or different-scope variables with the same name.",
+      inputSchema: renameInputSchema,
+    },
+    createRenameTool(provider),
+  );
+
+  server.registerTool(
+    "call_hierarchy",
+    {
+      description:
+        "Get the directed call graph for a function or method. " +
+        "Unlike find_references (which lists all symbol usages including type references, re-exports, and assignments), " +
+        "this shows only actual function call relationships with caller/callee direction and container context. " +
+        'USE THIS INSTEAD OF grep when tracing "who calls this function" or "what does this function call". ' +
+        "Returns structured caller/callee data with container function names - more precise than text search. " +
+        'Use "incoming" for callers, "outgoing" for callees, "both" for full graph.',
+      inputSchema: callHierarchyInputSchema,
+    },
+    createCallHierarchyTool(provider),
   );
 
   return server;
