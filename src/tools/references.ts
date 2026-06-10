@@ -35,7 +35,7 @@ export function formatReferencesResult(
     // Compact: summary header + per-file kind breakdown
     const lines = [
       `References for symbol at ${location.file}:${location.line}:${location.column}\n`,
-      `  ${result.references.length} references across ${byFile.size} files`,
+      `  ${result.references.length} references across ${byFile.size} ${byFile.size === 1 ? "file" : "files"}`,
     ];
     for (const [file, refs] of byFile) {
       const kindCounts = new Map<string, number>();
@@ -62,7 +62,13 @@ export function formatReferencesResult(
       overflow += refs.length;
       continue;
     }
-    lines.push(`  ${file}:`);
+
+    // Count how many from this file will actually be shown
+    const willShow = Math.min(refs.length, limit - shown);
+    if (willShow > 0) {
+      lines.push(`  ${file}:`);
+    }
+
     for (const ref of refs) {
       if (shown < limit) {
         lines.push(`    L${ref.line}:${ref.column}  [${ref.kind}]`);

@@ -69,4 +69,17 @@ describe("formatReferencesResult - verbose", () => {
     const posLines = text.split("\n").filter((l) => l.trim().startsWith("L"));
     expect(posLines.length).toBe(5);
   });
+
+  it("does not emit orphaned file headers when all refs in a file overflow limit", () => {
+    const refs = [
+      ...Array.from({ length: 5 }, (_, i) => ref("/src/a.ts", i + 1, 1, "call")),
+      ref("/src/b.ts", 1, 1, "call"),
+      ref("/src/b.ts", 2, 1, "call"),
+    ];
+    const result: ReferencesResult = { references: refs };
+    const text = formatReferencesResult(loc, result, { verbose: true, limit: 5 });
+    // b.ts header should not appear since no refs from b.ts are shown
+    expect(text).not.toContain("/src/b.ts:");
+    expect(text).toContain("... and 2 more");
+  });
 });
