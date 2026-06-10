@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDefaultProvider, createServer } from "../src/server.js";
 
@@ -207,5 +207,39 @@ describe("MCP server", () => {
     } finally {
       process.chdir(cwd);
     }
+  });
+});
+
+describe("withInstrumentation", () => {
+  it("does not emit to stderr when LSP_MCP_DEBUG is unset", async () => {
+    const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    delete process.env.LSP_MCP_DEBUG;
+
+    const { withInstrumentation } = await import("../src/server.js");
+    const handler = withInstrumentation("test_tool", async () => ({
+      content: [{ type: "text" as const, text: "ok" }],
+    }));
+    await handler({});
+
+    expect(stderrWrite).not.toHaveBeenCalled();
+    stderrWrite.mockRestore();
+  });
+
+  it("writes to stderr (not stdout) when LSP_MCP_DEBUG is set", async () => {
+    const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    process.env.LSP_MCP_DEBUG = "1";
+
+    const { withInstrumentation } = await import("../src/server.js");
+    const handler = withInstrumentation("test_tool", async () => ({
+      content: [{ type: "text" as const, text: "hello world" }],
+    }));
+    await handler({});
+
+    expect(stderrWrite).toHaveBeenCalledWith(expect.stringContaining("test_tool"));
+    expect(stdoutWrite).not.toHaveBeenCalled();
+    delete process.env.LSP_MCP_DEBUG;
+    stderrWrite.mockRestore();
+    stdoutWrite.mockRestore();
   });
 });
