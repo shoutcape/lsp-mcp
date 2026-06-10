@@ -1,5 +1,10 @@
+import { readFile as fsReadFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Hover, MarkupContent } from "vscode-languageserver-protocol";
+import {
+  classifyReferences,
+  type ReferenceKind,
+} from "../languages/typescript/reference-classifier.js";
 import {
   requestCallHierarchyIncoming,
   requestCallHierarchyOutgoing,
@@ -27,6 +32,7 @@ import type {
   HealthInfo,
   HealthRequest,
   HoverResult,
+  ReferencesRequest,
   ReferencesResult,
   RenameLocation,
   RenameRequest,
@@ -93,15 +99,18 @@ export interface LspProviderSessionManager {
 export interface LspSemanticProviderOptions {
   manager: LspProviderSessionManager | LspSessionManager;
   setupError?: SetupErrorInfo;
+  readFile?: (path: string) => Promise<string>; // injectable for tests
 }
 
 export class LspSemanticProvider implements SemanticProvider {
   private readonly manager: LspProviderSessionManager;
   private readonly setupError: SetupErrorInfo | undefined;
+  private readonly readFile: (path: string) => Promise<string>;
 
   constructor(options: LspSemanticProviderOptions) {
     this.manager = options.manager;
     this.setupError = options.setupError;
+    this.readFile = options.readFile ?? ((p) => fsReadFile(p, "utf8"));
   }
 
   async getHealth(request: HealthRequest = {}): Promise<HealthInfo> {
@@ -203,34 +212,110 @@ export class LspSemanticProvider implements SemanticProvider {
     };
   }
 
-  async getReferences(location: FileLocation): Promise<ReferencesResult> {
-    const { info, session } = await this.manager.ensureSession(location.file);
+  async getReferences(request: ReferencesRequest): Promise<ReferencesResult> {
+    const { info, session } = await this.manager.ensureSession(request.file);
     if (info.state !== "ready") {
       throw new Error(`LSP session not ready: ${info.message}`);
     }
 
-    const uri = pathToFileURL(location.file).toString();
+    const uri = pathToFileURL(request.file).toString();
     const position = {
-      line: location.line - 1,
-      character: location.column - 1,
+      line: request.line - 1,
+      character: request.column - 1,
     };
 
-    await session.prepareFile(location.file, languageIdForFile(location.file));
+    await session.prepareFile(request.file, languageIdForFile(request.file));
 
     const connection = session.getConnection();
     if (connection === undefined)
       throw new Error("LSP connection unavailable.");
 
-    const result = await requestReferences(connection, uri, position);
-    if (result === null) return { references: [] };
+    // Run references and definition in parallel (same connection, same session)
+    const [rawRefs, rawDef] = await Promise.all([
+      requestReferences(connection, uri, position),
+      requestDefinition(connection, uri, position),
+    ]);
 
-    return {
-      references: result.map((ref) => ({
-        file: fileURLToPath(ref.uri),
+    if (rawRefs === null) return { references: [] };
+
+    // Resolve definition position (if available) for isDefinition matching
+    type AnyLoc = {
+      uri?: string;
+      targetUri?: string;
+      range?: { start: { line: number; character: number } };
+      targetSelectionRange?: { start: { line: number; character: number } };
+      targetRange?: { start: { line: number; character: number } };
+    };
+    let defFile: string | undefined;
+    let defLine: number | undefined;
+    let defColumn: number | undefined;
+    if (rawDef !== null) {
+      const defs = (Array.isArray(rawDef) ? rawDef : [rawDef]) as AnyLoc[];
+      const first = defs[0];
+      if (first !== undefined) {
+        const targetUri = (first.targetUri ?? first.uri) as string | undefined;
+        const range =
+          first.targetSelectionRange ?? first.targetRange ?? first.range;
+        if (targetUri !== undefined && range !== undefined) {
+          defFile = fileURLToPath(targetUri);
+          defLine = range.start.line + 1;
+          defColumn = range.start.character + 1;
+        }
+      }
+    }
+
+    // Group refs by file for batched classification
+    const refsByFile = new Map<
+      string,
+      Array<{ line: number; column: number; idx: number }>
+    >();
+    const allRefs = rawRefs.map((ref, idx) => {
+      const file = fileURLToPath(ref.uri);
+      const entry = {
         line: ref.range.start.line + 1,
         column: ref.range.start.character + 1,
-        isDefinition: false,
-        isWriteAccess: false,
+        idx,
+      };
+      const existing = refsByFile.get(file) ?? [];
+      refsByFile.set(file, [...existing, entry]);
+      return { file, line: entry.line, column: entry.column };
+    });
+
+    // Classify per file (read each file once)
+    const kindByIdx = new Map<number, ReferenceKind>();
+    for (const [file, fileRefs] of refsByFile) {
+      let lines: string[];
+      try {
+        const content = await this.readFile(file);
+        lines = content.split("\n");
+      } catch {
+        // If file unreadable, fall back to "reference" for all refs in it
+        for (const r of fileRefs) kindByIdx.set(r.idx, "reference");
+        continue;
+      }
+      const classified = classifyReferences({
+        lines,
+        refs: fileRefs,
+        definitionLine: file === defFile ? defLine : undefined,
+        definitionColumn: file === defFile ? defColumn : undefined,
+      });
+      for (let i = 0; i < fileRefs.length; i++) {
+        const r = fileRefs[i];
+        const k = classified[i];
+        if (r !== undefined && k !== undefined) kindByIdx.set(r.idx, k);
+      }
+    }
+
+    return {
+      references: allRefs.map((ref, idx) => ({
+        file: ref.file,
+        line: ref.line,
+        column: ref.column,
+        isDefinition:
+          ref.file === defFile &&
+          ref.line === defLine &&
+          ref.column === defColumn,
+        kind: kindByIdx.get(idx) ?? "reference",
       })),
     };
   }

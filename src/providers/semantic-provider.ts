@@ -51,12 +51,25 @@ export interface DefinitionResult {
   definitions: DefinitionEntry[];
 }
 
+export type ReferenceKind =
+  | "definition"
+  | "import"
+  | "type-import"
+  | "export"
+  | "jsx"
+  | "call"
+  | "reference";
+
 export interface ReferenceEntry {
   file: string;
   line: number;
   column: number;
   isDefinition: boolean;
-  isWriteAccess: boolean;
+  kind: ReferenceKind;
+}
+
+export interface ReferencesRequest extends FileLocation {
+  verbose?: boolean;
 }
 
 export interface ReferencesResult {
@@ -137,7 +150,7 @@ export interface SemanticProvider {
   getHealth(request?: HealthRequest): Promise<HealthInfo>;
   getCapabilities(request?: CapabilitiesRequest): Promise<CapabilitiesInfo>;
   getDefinition(location: FileLocation): Promise<DefinitionResult>;
-  getReferences(location: FileLocation): Promise<ReferencesResult>;
+  getReferences(request: ReferencesRequest): Promise<ReferencesResult>;
   getHover(location: FileLocation): Promise<HoverResult>;
   getDiagnostics(request: DiagnosticsRequest): Promise<DiagnosticsResult>;
   getRename(request: RenameRequest): Promise<RenameResult>;

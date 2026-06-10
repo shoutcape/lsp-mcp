@@ -245,4 +245,81 @@ describe("semantic tools integration", { timeout: 30_000 }, () => {
     expect(result.outgoing).toBeDefined();
     expect(result.outgoing?.length).toBeGreaterThan(0);
   }, 15_000);
+
+  it("getReferences on add returns kind tags including import and call", async () => {
+    await session.prepareFile(UTILS_FILE, "typescript");
+    await session.prepareFile(INDEX_FILE, "typescript");
+
+    const provider = new LspSemanticProvider({
+      manager: {
+        getSummary() {
+          const info = session.getInfo();
+          return {
+            state: info.state,
+            message: info.message,
+            serverCapabilities: info.serverCapabilities,
+          };
+        },
+        async ensureSession() {
+          return { info: session.getInfo(), session };
+        },
+      },
+    });
+
+    // utils.ts line 2: `export function add(a: number, b: number): number {`
+    // "add" starts at column 17 (1-based)
+    const result = await provider.getReferences({
+      file: UTILS_FILE,
+      line: 2,
+      column: 17,
+    });
+
+    expect(result.references.length).toBeGreaterThan(0);
+    const kinds = result.references.map((r) => r.kind);
+    // definition in utils.ts
+    expect(kinds).toContain("definition");
+    // used in index.ts as import and call
+    expect(kinds.some((k) => k === "import" || k === "call")).toBe(true);
+  }, 15_000);
+
+  it("compact formatReferencesResult for add contains file and kind summary", async () => {
+    await session.prepareFile(UTILS_FILE, "typescript");
+    await session.prepareFile(INDEX_FILE, "typescript");
+
+    const provider = new LspSemanticProvider({
+      manager: {
+        getSummary() {
+          const info = session.getInfo();
+          return {
+            state: info.state,
+            message: info.message,
+            serverCapabilities: info.serverCapabilities,
+          };
+        },
+        async ensureSession() {
+          return { info: session.getInfo(), session };
+        },
+      },
+    });
+
+    const result = await provider.getReferences({
+      file: UTILS_FILE,
+      line: 2,
+      column: 17,
+    });
+
+    const { formatReferencesResult } = await import(
+      "../../src/tools/references.js"
+    );
+    const text = formatReferencesResult(
+      { file: UTILS_FILE, line: 2, column: 17 },
+      result,
+      { verbose: false },
+    );
+
+    expect(text).toContain("references");
+    expect(text).toContain("utils.ts");
+    // Should NOT contain raw L<n>:<n> position lines in compact mode
+    expect(text).not.toMatch(/^\s+L\d+:\d+/m);
+  }, 15_000);
 });

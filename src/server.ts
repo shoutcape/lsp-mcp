@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import { loadConfig } from "./config/load-config.js";
@@ -55,8 +56,39 @@ export interface ServerDependencies {
   provider?: SemanticProvider;
 }
 
-export function createServer(dependencies: ServerDependencies = {}): McpServer {
+export interface ServerOptions {
+  outputLimit?: number;
+}
+
+export function withInstrumentation<T extends object>(
+  toolName: string,
+  handler: (input: T) => Promise<CallToolResult>,
+): (input: T) => Promise<CallToolResult> {
+  return async (input: T) => {
+    const start = Date.now();
+    const result = await handler(input);
+    if (process.env.LSP_MCP_DEBUG) {
+      const bytes = result.content
+        .filter((c) => c.type === "text")
+        .reduce(
+          (sum, c) =>
+            sum + ((c as { type: "text"; text: string }).text?.length ?? 0),
+          0,
+        );
+      process.stderr.write(
+        `[lsp-mcp] ${toolName} ${Date.now() - start}ms ${bytes} bytes\n`,
+      );
+    }
+    return result;
+  };
+}
+
+export function createServer(
+  dependencies: ServerDependencies = {},
+  options: ServerOptions = {},
+): McpServer {
   const provider = dependencies.provider ?? new StaticSemanticProvider();
+  const outputLimit = options.outputLimit;
   const server = new McpServer({
     name: "lsp-mcp",
     version: "0.0.0",
@@ -100,13 +132,26 @@ export function createServer(dependencies: ServerDependencies = {}): McpServer {
     {
       description:
         "Find all usages of a symbol across the project. " +
-        "Results are grouped by file, marking definition and write-access sites. " +
+        "Results include a kind tag per reference (definition, import, type-import, export, jsx, call, reference). " +
+        "Default output is a compact summary grouped by file. Use verbose:true for full position list. " +
         "USE THIS INSTEAD OF grep when you need to find all callers, consumers, or importers of a function/type/variable. " +
+        "One call replaces all grep/glob/read passes for impact analysis - do not re-read files to classify references, and do not also grep. " +
         "Unlike grep, this understands TypeScript scope, resolves aliases, and finds usages through re-exports. " +
-        "Returns complete results - no risk of missing usages due to aliasing or renaming.",
-      inputSchema: fileLocationInputSchema,
+        "Returns complete results - no risk of missing usages due to aliasing, renaming, or multi-line imports.",
+      inputSchema: {
+        ...fileLocationInputSchema,
+        verbose: z
+          .boolean()
+          .optional()
+          .describe(
+            "false (default): compact summary with per-file kind counts. true: full position list with kind tags.",
+          ),
+      },
     },
-    createReferencesTool(provider),
+    withInstrumentation(
+      "find_references",
+      createReferencesTool(provider, { limit: outputLimit }),
+    ),
   );
 
   server.registerTool(
@@ -170,9 +215,9 @@ export function createServer(dependencies: ServerDependencies = {}): McpServer {
   return server;
 }
 
-export async function createDefaultProvider(): Promise<SemanticProvider> {
-  const configResult = await loadConfig();
-
+function createProviderFromConfig(
+  configResult: Awaited<ReturnType<typeof loadConfig>>,
+): SemanticProvider {
   if (!configResult.ok) {
     return createSetupErrorProvider(configResult.error.message);
   }
@@ -198,9 +243,18 @@ export async function createDefaultProvider(): Promise<SemanticProvider> {
   return new LspSemanticProvider({ manager });
 }
 
+export async function createDefaultProvider(): Promise<SemanticProvider> {
+  const configResult = await loadConfig();
+  return createProviderFromConfig(configResult);
+}
+
 export async function startStdioServer(): Promise<void> {
-  const provider = await createDefaultProvider();
-  const server = createServer({ provider });
+  const configResult = await loadConfig();
+  const provider = createProviderFromConfig(configResult);
+  const outputLimit = configResult.ok
+    ? configResult.config.output?.defaultLimit
+    : undefined;
+  const server = createServer({ provider }, { outputLimit });
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

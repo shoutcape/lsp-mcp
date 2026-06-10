@@ -7,6 +7,7 @@ import type {
   HealthInfo,
   HealthRequest,
   HoverResult,
+  ReferencesRequest,
   ReferencesResult,
   RenameResult,
   SemanticProvider,
@@ -34,7 +35,9 @@ export class StaticSemanticProvider implements SemanticProvider {
     return { definitions: [] };
   }
 
-  async getReferences(): Promise<ReferencesResult> {
+  async getReferences(
+    _request: ReferencesRequest = { file: "", line: 1, column: 1 },
+  ): Promise<ReferencesResult> {
     return { references: [] };
   }
 
