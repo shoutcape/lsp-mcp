@@ -35,7 +35,9 @@ export class StaticSemanticProvider implements SemanticProvider {
     return { definitions: [] };
   }
 
-  async getReferences(_request: ReferencesRequest = { file: "", line: 1, column: 1 }): Promise<ReferencesResult> {
+  async getReferences(
+    _request: ReferencesRequest = { file: "", line: 1, column: 1 },
+  ): Promise<ReferencesResult> {
     return { references: [] };
   }
 

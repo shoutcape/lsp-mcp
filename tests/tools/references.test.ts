@@ -7,7 +7,13 @@ import { formatReferencesResult } from "../../src/tools/references.js";
 
 const loc = { file: "/src/Button.tsx", line: 12, column: 14 };
 
-function ref(file: string, line: number, column: number, kind: ReferenceEntry["kind"], isDefinition = false): ReferenceEntry {
+function ref(
+  file: string,
+  line: number,
+  column: number,
+  kind: ReferenceEntry["kind"],
+  isDefinition = false,
+): ReferenceEntry {
   return { file, line, column, isDefinition, kind };
 }
 
@@ -30,7 +36,7 @@ describe("formatReferencesResult - compact (default)", () => {
     expect(text).toContain("2 call");
     expect(text).toContain("/src/ButtonGroup.tsx");
     expect(text).toContain("1 import");
-    expect(text).not.toContain("L12:14");  // no positions in compact mode
+    expect(text).not.toContain("L12:14"); // no positions in compact mode
   });
 
   it("shows no references message when empty", () => {
@@ -63,7 +69,10 @@ describe("formatReferencesResult - verbose", () => {
       ref("/src/a.ts", i + 1, 1, "call"),
     );
     const result: ReferencesResult = { references: refs };
-    const text = formatReferencesResult(loc, result, { verbose: true, limit: 5 });
+    const text = formatReferencesResult(loc, result, {
+      verbose: true,
+      limit: 5,
+    });
     expect(text).toContain("... and 5 more");
     // only 5 positions shown
     const posLines = text.split("\n").filter((l) => l.trim().startsWith("L"));
@@ -72,12 +81,17 @@ describe("formatReferencesResult - verbose", () => {
 
   it("does not emit orphaned file headers when all refs in a file overflow limit", () => {
     const refs = [
-      ...Array.from({ length: 5 }, (_, i) => ref("/src/a.ts", i + 1, 1, "call")),
+      ...Array.from({ length: 5 }, (_, i) =>
+        ref("/src/a.ts", i + 1, 1, "call"),
+      ),
       ref("/src/b.ts", 1, 1, "call"),
       ref("/src/b.ts", 2, 1, "call"),
     ];
     const result: ReferencesResult = { references: refs };
-    const text = formatReferencesResult(loc, result, { verbose: true, limit: 5 });
+    const text = formatReferencesResult(loc, result, {
+      verbose: true,
+      limit: 5,
+    });
     // b.ts header should not appear since no refs from b.ts are shown
     expect(text).not.toContain("/src/b.ts:");
     expect(text).toContain("... and 2 more");

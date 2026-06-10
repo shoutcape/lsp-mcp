@@ -216,7 +216,9 @@ describe("withInstrumentation", () => {
   });
 
   it("does not emit to stderr when LSP_MCP_DEBUG is unset", async () => {
-    const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const stderrWrite = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     delete process.env.LSP_MCP_DEBUG;
 
     const { withInstrumentation } = await import("../src/server.js");
@@ -230,8 +232,12 @@ describe("withInstrumentation", () => {
   });
 
   it("writes to stderr (not stdout) when LSP_MCP_DEBUG is set", async () => {
-    const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderrWrite = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const stdoutWrite = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
     process.env.LSP_MCP_DEBUG = "1";
 
     const { withInstrumentation } = await import("../src/server.js");
@@ -240,7 +246,9 @@ describe("withInstrumentation", () => {
     }));
     await handler({});
 
-    expect(stderrWrite).toHaveBeenCalledWith(expect.stringContaining("test_tool"));
+    expect(stderrWrite).toHaveBeenCalledWith(
+      expect.stringContaining("test_tool"),
+    );
     expect(stdoutWrite).not.toHaveBeenCalled();
     stderrWrite.mockRestore();
     stdoutWrite.mockRestore();

@@ -10,13 +10,13 @@ export type ReferenceKind =
 export interface ClassifyInput {
   lines: string[];
   refs: Array<{ line: number; column: number }>; // 1-based
-  definitionLine?: number;   // 1-based; if set, matching ref is tagged "definition"
+  definitionLine?: number; // 1-based; if set, matching ref is tagged "definition"
   definitionColumn?: number; // 1-based
 }
 
 interface Span {
   startLine: number; // 1-based inclusive
-  endLine: number;   // 1-based inclusive
+  endLine: number; // 1-based inclusive
   kind: "import" | "type-import" | "export";
 }
 
@@ -62,7 +62,9 @@ function classifyOne(
       if (span.kind === "import") {
         const lineText = input.lines[ref.line - 1] ?? "";
         // Strip the partial identifier at ref position, then check for `type` keyword
-        const before = lineText.slice(0, ref.column - 1).replace(/[A-Za-z_$][\w$]*$/, "");
+        const before = lineText
+          .slice(0, ref.column - 1)
+          .replace(/[A-Za-z_$][\w$]*$/, "");
         if (/\btype\s+$/.test(before)) {
           return "type-import";
         }

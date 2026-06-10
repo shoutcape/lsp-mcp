@@ -227,7 +227,8 @@ export class LspSemanticProvider implements SemanticProvider {
     await session.prepareFile(request.file, languageIdForFile(request.file));
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     // Run references and definition in parallel (same connection, same session)
     const [rawRefs, rawDef] = await Promise.all([
@@ -253,7 +254,8 @@ export class LspSemanticProvider implements SemanticProvider {
       const first = defs[0];
       if (first !== undefined) {
         const targetUri = (first.targetUri ?? first.uri) as string | undefined;
-        const range = first.targetSelectionRange ?? first.targetRange ?? first.range;
+        const range =
+          first.targetSelectionRange ?? first.targetRange ?? first.range;
         if (targetUri !== undefined && range !== undefined) {
           defFile = fileURLToPath(targetUri);
           defLine = range.start.line + 1;
@@ -263,10 +265,17 @@ export class LspSemanticProvider implements SemanticProvider {
     }
 
     // Group refs by file for batched classification
-    const refsByFile = new Map<string, Array<{ line: number; column: number; idx: number }>>();
+    const refsByFile = new Map<
+      string,
+      Array<{ line: number; column: number; idx: number }>
+    >();
     const allRefs = rawRefs.map((ref, idx) => {
       const file = fileURLToPath(ref.uri);
-      const entry = { line: ref.range.start.line + 1, column: ref.range.start.character + 1, idx };
+      const entry = {
+        line: ref.range.start.line + 1,
+        column: ref.range.start.character + 1,
+        idx,
+      };
       const existing = refsByFile.get(file) ?? [];
       refsByFile.set(file, [...existing, entry]);
       return { file, line: entry.line, column: entry.column };
@@ -302,7 +311,10 @@ export class LspSemanticProvider implements SemanticProvider {
         file: ref.file,
         line: ref.line,
         column: ref.column,
-        isDefinition: ref.file === defFile && ref.line === defLine && ref.column === defColumn,
+        isDefinition:
+          ref.file === defFile &&
+          ref.line === defLine &&
+          ref.column === defColumn,
         kind: kindByIdx.get(idx) ?? "reference",
       })),
     };

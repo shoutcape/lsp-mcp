@@ -256,14 +256,32 @@ describe("LspSemanticProvider", () => {
       sendRequest: vi.fn().mockImplementation((method: { method: string }) => {
         if (method.method === "textDocument/references") {
           return Promise.resolve([
-            { uri: "file:///project/index.ts", range: { start: { line: 0, character: 9 }, end: { line: 0, character: 12 } } },
-            { uri: "file:///project/index.ts", range: { start: { line: 1, character: 10 }, end: { line: 1, character: 13 } } },
+            {
+              uri: "file:///project/index.ts",
+              range: {
+                start: { line: 0, character: 9 },
+                end: { line: 0, character: 12 },
+              },
+            },
+            {
+              uri: "file:///project/index.ts",
+              range: {
+                start: { line: 1, character: 10 },
+                end: { line: 1, character: 13 },
+              },
+            },
           ]);
         }
         // definition request - return the second occurrence as "definition"
         if (method.method === "textDocument/definition") {
           return Promise.resolve([
-            { uri: "file:///project/utils.ts", range: { start: { line: 1, character: 16 }, end: { line: 1, character: 19 } } },
+            {
+              uri: "file:///project/utils.ts",
+              range: {
+                start: { line: 1, character: 16 },
+                end: { line: 1, character: 19 },
+              },
+            },
           ]);
         }
         return Promise.resolve(null);
@@ -276,7 +294,11 @@ describe("LspSemanticProvider", () => {
     const manager: LspProviderSessionManager = {
       getSummary: vi.fn(),
       ensureSession: vi.fn().mockResolvedValue({
-        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        info: {
+          state: "ready" as const,
+          message: "ready",
+          serverCapabilities: [],
+        },
         session: {
           getConnection: vi.fn(() => mockConnection),
           prepareFile: vi.fn().mockResolvedValue("opened"),
@@ -309,12 +331,24 @@ describe("LspSemanticProvider", () => {
       sendRequest: vi.fn().mockImplementation((method: { method: string }) => {
         if (method.method === "textDocument/references") {
           return Promise.resolve([
-            { uri: "file:///project/utils.ts", range: { start: { line: 0, character: 16 }, end: { line: 0, character: 19 } } },
+            {
+              uri: "file:///project/utils.ts",
+              range: {
+                start: { line: 0, character: 16 },
+                end: { line: 0, character: 19 },
+              },
+            },
           ]);
         }
         if (method.method === "textDocument/definition") {
           return Promise.resolve([
-            { uri: "file:///project/utils.ts", range: { start: { line: 0, character: 16 }, end: { line: 0, character: 19 } } },
+            {
+              uri: "file:///project/utils.ts",
+              range: {
+                start: { line: 0, character: 16 },
+                end: { line: 0, character: 19 },
+              },
+            },
           ]);
         }
         return Promise.resolve(null);
@@ -327,7 +361,11 @@ describe("LspSemanticProvider", () => {
     const manager: LspProviderSessionManager = {
       getSummary: vi.fn(),
       ensureSession: vi.fn().mockResolvedValue({
-        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        info: {
+          state: "ready" as const,
+          message: "ready",
+          serverCapabilities: [],
+        },
         session: {
           getConnection: vi.fn(() => mockConnection),
           prepareFile: vi.fn().mockResolvedValue("opened"),

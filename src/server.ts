@@ -70,7 +70,11 @@ export function withInstrumentation<T extends object>(
     if (process.env.LSP_MCP_DEBUG) {
       const bytes = result.content
         .filter((c) => c.type === "text")
-        .reduce((sum, c) => sum + ((c as { type: "text"; text: string }).text?.length ?? 0), 0);
+        .reduce(
+          (sum, c) =>
+            sum + ((c as { type: "text"; text: string }).text?.length ?? 0),
+          0,
+        );
       process.stderr.write(
         `[lsp-mcp] ${toolName} ${Date.now() - start}ms ${bytes} bytes\n`,
       );
@@ -247,8 +251,9 @@ export async function createDefaultProvider(): Promise<SemanticProvider> {
 export async function startStdioServer(): Promise<void> {
   const configResult = await loadConfig();
   const provider = createProviderFromConfig(configResult);
-  const outputLimit =
-    configResult.ok ? configResult.config.output?.defaultLimit : undefined;
+  const outputLimit = configResult.ok
+    ? configResult.config.output?.defaultLimit
+    : undefined;
   const server = createServer({ provider }, { outputLimit });
   const transport = new StdioServerTransport();
   await server.connect(transport);

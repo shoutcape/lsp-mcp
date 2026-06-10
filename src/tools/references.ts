@@ -80,7 +80,9 @@ export function formatReferencesResult(
   }
 
   if (overflow > 0) {
-    lines.push(`  ... and ${overflow} more (use verbose:true with a higher limit)`);
+    lines.push(
+      `  ... and ${overflow} more (use verbose:true with a higher limit)`,
+    );
   }
 
   return lines.join("\n");
