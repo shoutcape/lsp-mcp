@@ -4,13 +4,20 @@ import type {
   CapabilitiesRequest,
   DefinitionResult,
   DiagnosticsResult,
+  DocumentSymbolsResult,
+  FileLocation,
   HealthInfo,
   HealthRequest,
   HoverResult,
+  ImplementationResult,
   ReferencesRequest,
   ReferencesResult,
   RenameResult,
   SemanticProvider,
+  SignatureHelpResult,
+  TypeDefinitionResult,
+  WorkspaceSymbolsRequest,
+  WorkspaceSymbolsResult,
 } from "./semantic-provider.js";
 
 export class StaticSemanticProvider implements SemanticProvider {
@@ -55,5 +62,25 @@ export class StaticSemanticProvider implements SemanticProvider {
 
   async getCallHierarchy(): Promise<CallHierarchyResult> {
     return { item: null };
+  }
+
+  async getTypeDefinition(_location: FileLocation): Promise<TypeDefinitionResult> {
+    return { locations: [] };
+  }
+
+  async getImplementation(_location: FileLocation): Promise<ImplementationResult> {
+    return { locations: [] };
+  }
+
+  async getDocumentSymbols(_file: string): Promise<DocumentSymbolsResult> {
+    return { symbols: [] };
+  }
+
+  async getWorkspaceSymbols(_request: WorkspaceSymbolsRequest): Promise<WorkspaceSymbolsResult> {
+    return { symbols: [] };
+  }
+
+  async getSignatureHelp(_location: FileLocation): Promise<SignatureHelpResult> {
+    return { signatures: [], activeSignature: 0, activeParameter: 0 };
   }
 }
