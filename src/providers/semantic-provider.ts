@@ -57,7 +57,9 @@ export type ReferenceKind =
   | "type-import"
   | "export"
   | "jsx"
+  | "jsx-attribute"
   | "call"
+  | "spread"
   | "reference";
 
 export interface ReferenceEntry {

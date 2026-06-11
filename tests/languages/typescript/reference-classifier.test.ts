@@ -124,3 +124,80 @@ describe("classifyReferences", () => {
     expect(result[0]).toBe("export");
   });
 });
+
+describe("spread kind", () => {
+  it("tags {...props} as spread", () => {
+    const src = `const el = <Modal {...props} />;`;
+    // "props" starts at col 23 (1-based); immediately preceded by "..."
+    const result = classifyReferences({
+      lines: src.split("\n"),
+      refs: [{ line: 1, column: 23 }],
+    });
+    expect(result[0]).toBe("spread");
+  });
+
+  it("tags object spread as spread", () => {
+    const src = `const merged = { ...defaults, extra: 1 };`;
+    // "defaults" at col 21
+    const result = classifyReferences({
+      lines: src.split("\n"),
+      refs: [{ line: 1, column: 21 }],
+    });
+    expect(result[0]).toBe("spread");
+  });
+
+  it("tags rest spread in function call as spread", () => {
+    const src = `fn(...args);`;
+    // "args" at col 7
+    const result = classifyReferences({
+      lines: src.split("\n"),
+      refs: [{ line: 1, column: 7 }],
+    });
+    expect(result[0]).toBe("spread");
+  });
+});
+
+describe("jsx-attribute kind", () => {
+  it("tags JSX attribute value reference as jsx-attribute", () => {
+    const src = `return <Foo className={styles} />;`;
+    // "styles" at col 24 - inside JSX tag, in attribute value
+    const result = classifyReferences({
+      lines: src.split("\n"),
+      refs: [{ line: 1, column: 24 }],
+    });
+    expect(result[0]).toBe("jsx-attribute");
+  });
+
+  it("tags JSX event handler as jsx-attribute", () => {
+    const src = `return <Btn onChange={handler} />;`;
+    // "handler" at col 23
+    const result = classifyReferences({
+      lines: src.split("\n"),
+      refs: [{ line: 1, column: 23 }],
+    });
+    expect(result[0]).toBe("jsx-attribute");
+  });
+
+  it("does not re-classify JSX tag name as jsx-attribute (still jsx)", () => {
+    const src = `return <Button className="x" />;`;
+    // "Button" at col 9, preceded by "<" -> should remain "jsx"
+    const result = classifyReferences({
+      lines: src.split("\n"),
+      refs: [{ line: 1, column: 9 }],
+    });
+    expect(result[0]).toBe("jsx");
+  });
+});
+
+describe("ReferenceKind sync check", () => {
+  it("classifier ReferenceKind values match semantic-provider ReferenceKind", () => {
+    const classifierKinds: string[] = [
+      "definition", "import", "type-import", "export",
+      "jsx", "jsx-attribute", "call", "spread", "reference",
+    ];
+    expect(classifierKinds.sort()).toEqual([
+      "call", "definition", "export", "import",
+      "jsx", "jsx-attribute", "reference", "spread", "type-import",
+    ]);
+  });
+});

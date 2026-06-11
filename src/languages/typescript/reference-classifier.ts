@@ -4,7 +4,9 @@ export type ReferenceKind =
   | "type-import"
   | "export"
   | "jsx"
+  | "jsx-attribute"
   | "call"
+  | "spread"
   | "reference";
 
 export interface ClassifyInput {
@@ -73,11 +75,27 @@ function classifyOne(
     }
   }
 
-  // 3. JSX: character immediately before the ref on the same line is "<"
+  // 3. Spread: the three characters immediately before the ref token are "..."
   const lineText = input.lines[ref.line - 1] ?? "";
+  const precedingText = lineText.slice(0, ref.column - 1);
+  if (precedingText.trimEnd().endsWith("...")) {
+    return "spread";
+  }
+
+  // 3a. JSX: character immediately before the ref on the same line is "<"
   const charBefore = lineText[ref.column - 2]; // column is 1-based, so -2 for preceding char
   if (charBefore === "<") {
     return "jsx";
+  }
+
+  // 3b. JSX attribute: ref is in attribute-value position inside a JSX tag.
+  // Conservative: only classify when "={" pattern immediately precedes the ref position.
+  const attrValueMatch = /=\{[^}]*$/.exec(lineText.slice(0, ref.column - 1));
+  if (attrValueMatch) {
+    const beforeRef = lineText.slice(0, ref.column - 1);
+    if (/<[A-Z][A-Za-z0-9.]*/.test(beforeRef) || beforeRef.includes("={")) {
+      return "jsx-attribute";
+    }
   }
 
   // 4. Call: after the ref token, the next non-whitespace/generic char is "("
