@@ -76,6 +76,7 @@ export interface ReferencesRequest extends FileLocation {
 
 export interface ReferencesResult {
   references: ReferenceEntry[];
+  caveats?: string[]; // explicit gaps: degraded, any-typed, spread, cross-project, truncation
 }
 
 export interface HoverResult {
@@ -142,6 +143,7 @@ export interface CallHierarchyResult {
   item: CallHierarchyItemInfo | null;
   incoming?: IncomingCallInfo[];
   outgoing?: OutgoingCallInfo[];
+  caveats?: string[]; // explicit gaps: indirect-call hint when empty
 }
 
 export interface CallHierarchyRequest extends FileLocation {

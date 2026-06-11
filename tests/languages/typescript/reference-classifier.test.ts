@@ -192,12 +192,26 @@ describe("jsx-attribute kind", () => {
 describe("ReferenceKind sync check", () => {
   it("classifier ReferenceKind values match semantic-provider ReferenceKind", () => {
     const classifierKinds: string[] = [
-      "definition", "import", "type-import", "export",
-      "jsx", "jsx-attribute", "call", "spread", "reference",
+      "definition",
+      "import",
+      "type-import",
+      "export",
+      "jsx",
+      "jsx-attribute",
+      "call",
+      "spread",
+      "reference",
     ];
     expect(classifierKinds.sort()).toEqual([
-      "call", "definition", "export", "import",
-      "jsx", "jsx-attribute", "reference", "spread", "type-import",
+      "call",
+      "definition",
+      "export",
+      "import",
+      "jsx",
+      "jsx-attribute",
+      "reference",
+      "spread",
+      "type-import",
     ]);
   });
 });
