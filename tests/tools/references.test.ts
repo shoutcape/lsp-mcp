@@ -97,3 +97,44 @@ describe("formatReferencesResult - verbose", () => {
     expect(text).toContain("... and 2 more");
   });
 });
+
+describe("caveats block", () => {
+  it("appends caveats block when caveats present (compact)", () => {
+    const result: ReferencesResult = {
+      references: [ref("/src/a.ts", 1, 1, "reference")],
+      caveats: ["TS server degraded; results may be incomplete."],
+    };
+    const text = formatReferencesResult(loc, result, { verbose: false });
+    expect(text).toContain("caveats:");
+    expect(text).toContain("TS server degraded");
+  });
+
+  it("appends caveats block when caveats present (verbose)", () => {
+    const result: ReferencesResult = {
+      references: [ref("/src/a.ts", 1, 1, "spread")],
+      caveats: [
+        "1 ref flows through {...props} spreads; per-prop trail is not followed by LSP.",
+      ],
+    };
+    const text = formatReferencesResult(loc, result, { verbose: true });
+    expect(text).toContain("caveats:");
+    expect(text).toContain("spread");
+  });
+
+  it("omits caveats block when caveats absent", () => {
+    const result: ReferencesResult = {
+      references: [ref("/src/a.ts", 1, 1, "call")],
+    };
+    const text = formatReferencesResult(loc, result, { verbose: false });
+    expect(text).not.toContain("caveats:");
+  });
+
+  it("omits caveats block when caveats is empty array", () => {
+    const result: ReferencesResult = {
+      references: [ref("/src/a.ts", 1, 1, "call")],
+      caveats: [],
+    };
+    const text = formatReferencesResult(loc, result, { verbose: false });
+    expect(text).not.toContain("caveats:");
+  });
+});

@@ -13,6 +13,15 @@ export interface FormatOptions {
   limit?: number;
 }
 
+function renderCaveats(caveats: string[] | undefined): string {
+  if (!caveats || caveats.length === 0) return "";
+  const lines = ["\n  caveats:"];
+  for (const c of caveats) {
+    lines.push(`  - ${c}`);
+  }
+  return lines.join("\n");
+}
+
 export function formatReferencesResult(
   location: FileLocation,
   result: ReferencesResult,
@@ -47,7 +56,7 @@ export function formatReferencesResult(
         .join(", ");
       lines.push(`  ${file}: ${refs.length} (${breakdown})`);
     }
-    return lines.join("\n");
+    return lines.join("\n") + renderCaveats(result.caveats);
   }
 
   // Verbose: per-file position list with kind tags, truncated at limit
@@ -85,7 +94,7 @@ export function formatReferencesResult(
     );
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + renderCaveats(result.caveats);
 }
 
 export function createReferencesTool(
