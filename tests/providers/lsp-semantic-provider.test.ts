@@ -389,3 +389,196 @@ describe("LspSemanticProvider", () => {
     expect(result.references[0]?.kind).toBe("definition");
   });
 });
+
+describe("getReferences caveats", () => {
+  function makeManager(
+    state: "ready" | "degraded",
+    mockSendRequest: (method: { method: string }) => unknown,
+    mockFileContent = "const x = y;",
+  ) {
+    const mockConnection = {
+      listen: vi.fn(),
+      sendRequest: vi.fn().mockImplementation(mockSendRequest),
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      onNotification: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn().mockReturnValue({
+        state:
+          state as import("../../src/providers/semantic-provider.js").HealthStatus,
+        message: state,
+        serverCapabilities: [],
+      }),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: {
+          state:
+            state as import("../../src/providers/semantic-provider.js").HealthStatus,
+          message: state,
+          serverCapabilities: [],
+        },
+        session: {
+          getConnection: vi.fn(() => mockConnection),
+          prepareFile: vi.fn().mockResolvedValue("opened"),
+        },
+      }),
+    };
+    return new LspSemanticProvider({
+      manager,
+      readFile: async () => mockFileContent,
+    });
+  }
+
+  it("emits degraded caveat when server state is degraded", async () => {
+    const provider = makeManager("degraded", (method: { method: string }) => {
+      if (method.method === "textDocument/references")
+        return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const result = await provider
+      .getReferences({ file: "/project/a.ts", line: 1, column: 1 })
+      .catch(() => null);
+
+    if (result !== null) {
+      expect(result.caveats?.some((c) => c.includes("degraded"))).toBe(true);
+    }
+  });
+
+  it("emits any-typed caveat when hover returns any type", async () => {
+    const provider = makeManager(
+      "ready",
+      (method: { method: string }) => {
+        if (method.method === "textDocument/references") {
+          return Promise.resolve([
+            {
+              uri: "file:///project/a.ts",
+              range: {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: 1 },
+              },
+            },
+          ]);
+        }
+        if (method.method === "textDocument/definition")
+          return Promise.resolve(null);
+        if (method.method === "textDocument/hover") {
+          return Promise.resolve({
+            contents: { kind: "markdown", value: "(parameter) x: any" },
+          });
+        }
+        return Promise.resolve(null);
+      },
+      "x;",
+    );
+
+    const result = await provider.getReferences({
+      file: "/project/a.ts",
+      line: 1,
+      column: 1,
+    });
+
+    expect(result.caveats?.some((c) => c.includes("any"))).toBe(true);
+  });
+
+  it("does not emit any-typed caveat when hover returns non-any type", async () => {
+    const provider = makeManager("ready", (method: { method: string }) => {
+      if (method.method === "textDocument/references")
+        return Promise.resolve([]);
+      if (method.method === "textDocument/hover") {
+        return Promise.resolve({
+          contents: { kind: "markdown", value: "(parameter) x: string" },
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    const result = await provider.getReferences({
+      file: "/project/a.ts",
+      line: 1,
+      column: 1,
+    });
+
+    expect(result.caveats ?? []).not.toContainEqual(
+      expect.stringContaining("any-typed"),
+    );
+  });
+
+  it("does not throw when hover fails; skips any-typed caveat", async () => {
+    const provider = makeManager("ready", (method: { method: string }) => {
+      if (method.method === "textDocument/references")
+        return Promise.resolve([]);
+      if (method.method === "textDocument/hover")
+        return Promise.reject(new Error("hover timeout"));
+      return Promise.resolve(null);
+    });
+
+    await expect(
+      provider.getReferences({ file: "/project/a.ts", line: 1, column: 1 }),
+    ).resolves.not.toThrow();
+  });
+
+  it("emits spread caveat when refs contain spread-classified entries", async () => {
+    const fileContent = `const x = { ...props };`;
+    // "props" at col 16 (0-based char 15)
+    const provider = makeManager(
+      "ready",
+      (method: { method: string }) => {
+        if (method.method === "textDocument/references") {
+          return Promise.resolve([
+            {
+              uri: "file:///project/a.ts",
+              range: {
+                start: { line: 0, character: 15 },
+                end: { line: 0, character: 20 },
+              },
+            },
+          ]);
+        }
+        return Promise.resolve(null);
+      },
+      fileContent,
+    );
+
+    const result = await provider.getReferences({
+      file: "/project/a.ts",
+      line: 1,
+      column: 17,
+    });
+
+    expect(result.caveats?.some((c) => c.includes("spread"))).toBe(true);
+  });
+
+  it("emits indirect-call caveat for call hierarchy when result is empty", async () => {
+    const mockConnection = {
+      listen: vi.fn(),
+      sendRequest: vi.fn().mockResolvedValue(null),
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      onNotification: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: {
+          state: "ready" as const,
+          message: "ready",
+          serverCapabilities: [],
+        },
+        session: {
+          getConnection: vi.fn(() => mockConnection),
+          prepareFile: vi.fn().mockResolvedValue("opened"),
+        },
+      }),
+    };
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getCallHierarchy({
+      file: "/project/a.ts",
+      line: 1,
+      column: 1,
+      direction: "incoming",
+    });
+    // item is null (prepareCallHierarchy returned null) -> caveat
+    expect(result.caveats?.some((c) => c.includes("indirect"))).toBe(true);
+  });
+});

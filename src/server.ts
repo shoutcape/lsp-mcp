@@ -132,12 +132,18 @@ export function createServer(
     {
       description:
         "Find all usages of a symbol across the project. " +
-        "Results include a kind tag per reference (definition, import, type-import, export, jsx, call, reference). " +
+        "Results include a kind tag per reference (definition, import, type-import, export, jsx, jsx-attribute, call, spread, reference). " +
         "Default output is a compact summary grouped by file. Use verbose:true for full position list. " +
         "USE THIS INSTEAD OF grep when you need to find all callers, consumers, or importers of a function/type/variable. " +
         "One call replaces all grep/glob/read passes for impact analysis - do not re-read files to classify references, and do not also grep. " +
         "Unlike grep, this understands TypeScript scope, resolves aliases, and finds usages through re-exports. " +
-        "Returns complete results - no risk of missing usages due to aliasing, renaming, or multi-line imports.",
+        "Returns complete results - no risk of missing usages due to aliasing, renaming, or multi-line imports. " +
+        "Does NOT find string-keyed usages (data-test-id / getByTestId values, " +
+        "i18n translation keys, GraphQL operation and fragment names, env var names, " +
+        "Contentful field IDs) or CSS class -> DOM relationships - use grep/ast-grep " +
+        "or browser devtools for those. " +
+        "Results depend on a healthy, type-checking TS project; any-typed boundaries " +
+        "and cross-tsconfig boundaries can sever the chain (surfaced as caveats in output).",
       inputSchema: {
         ...fileLocationInputSchema,
         verbose: z
@@ -164,7 +170,9 @@ export function createServer(
         "return type of a function, or resolved generic type parameters. " +
         "This computes the actual resolved type including generics, intersections, mapped types, " +
         "and conditional types - information that CANNOT be determined by reading source text alone. " +
-        'Essential for answering "what type is X?" without manually tracing type definitions.',
+        'Essential for answering "what type is X?" without manually tracing type definitions. ' +
+        "When a reference trail hits a spread site ({...props}), use hover on " +
+        "the spread expression to resolve the element type and continue the trail manually.",
       inputSchema: fileLocationInputSchema,
     },
     createHoverTool(provider),
@@ -206,7 +214,10 @@ export function createServer(
         "this shows only actual function call relationships with caller/callee direction and container context. " +
         'USE THIS INSTEAD OF grep when tracing "who calls this function" or "what does this function call". ' +
         "Returns structured caller/callee data with container function names - more precise than text search. " +
-        'Use "incoming" for callers, "outgoing" for callees, "both" for full graph.',
+        'Use "incoming" for callers, "outgoing" for callees, "both" for full graph. ' +
+        "Does NOT capture indirect or framework-invoked calls: dynamic import, " +
+        "string-keyed registries, HOC-wrapped components, or JSX-prop event " +
+        "callbacks - use grep/ast-grep for those.",
       inputSchema: callHierarchyInputSchema,
     },
     createCallHierarchyTool(provider),

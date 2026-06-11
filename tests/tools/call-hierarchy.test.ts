@@ -120,3 +120,29 @@ describe("formatCallHierarchyResult", () => {
     expect(text).toContain("(none)");
   });
 });
+
+describe("call hierarchy caveats block", () => {
+  it("appends caveats block when present", () => {
+    const result: CallHierarchyResult = {
+      item: null,
+      caveats: [
+        "call_hierarchy only sees direct call expressions; indirect calls are not captured.",
+      ],
+    };
+    const text = formatCallHierarchyResult(
+      { file: "/src/a.ts", line: 1, column: 1, direction: "incoming" },
+      result,
+    );
+    expect(text).toContain("caveats:");
+    expect(text).toContain("indirect calls");
+  });
+
+  it("omits caveats block when absent", () => {
+    const result: CallHierarchyResult = { item: null };
+    const text = formatCallHierarchyResult(
+      { file: "/src/a.ts", line: 1, column: 1, direction: "incoming" },
+      result,
+    );
+    expect(text).not.toContain("caveats:");
+  });
+});

@@ -12,12 +12,24 @@ function formatItem(item: CallHierarchyItemInfo): string {
   return `${item.name}${container} [${item.kind}] at ${item.file}:${item.line}`;
 }
 
+function renderCaveats(caveats: string[] | undefined): string {
+  if (!caveats || caveats.length === 0) return "";
+  const lines = ["\n  caveats:"];
+  for (const c of caveats) {
+    lines.push(`  - ${c}`);
+  }
+  return lines.join("\n");
+}
+
 export function formatCallHierarchyResult(
   request: CallHierarchyRequest,
   result: CallHierarchyResult,
 ): string {
   if (result.item === null) {
-    return `No call hierarchy item at ${request.file}:${request.line}:${request.column}`;
+    return (
+      `No call hierarchy item at ${request.file}:${request.line}:${request.column}` +
+      renderCaveats(result.caveats)
+    );
   }
 
   const lines = [`Call hierarchy for: ${formatItem(result.item)}\n`];
@@ -47,7 +59,7 @@ export function formatCallHierarchyResult(
     }
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + renderCaveats(result.caveats);
 }
 
 export function createCallHierarchyTool(provider: SemanticProvider) {

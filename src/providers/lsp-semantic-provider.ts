@@ -213,9 +213,13 @@ export class LspSemanticProvider implements SemanticProvider {
   }
 
   async getReferences(request: ReferencesRequest): Promise<ReferencesResult> {
+    const summary = this.manager.getSummary();
     const { info, session } = await this.manager.ensureSession(request.file);
     if (info.state !== "ready") {
-      throw new Error(`LSP session not ready: ${info.message}`);
+      // Allow degraded summary state to proceed with caveats instead of throwing
+      if (summary.state !== "degraded") {
+        throw new Error(`LSP session not ready: ${info.message}`);
+      }
     }
 
     const uri = pathToFileURL(request.file).toString();
@@ -230,10 +234,11 @@ export class LspSemanticProvider implements SemanticProvider {
     if (connection === undefined)
       throw new Error("LSP connection unavailable.");
 
-    // Run references and definition in parallel (same connection, same session)
-    const [rawRefs, rawDef] = await Promise.all([
+    // Run references, definition, and hover in parallel
+    const [rawRefs, rawDef, rawHover] = await Promise.all([
       requestReferences(connection, uri, position),
       requestDefinition(connection, uri, position),
+      requestHover(connection, uri, position).catch(() => null),
     ]);
 
     if (rawRefs === null) return { references: [] };
@@ -306,6 +311,45 @@ export class LspSemanticProvider implements SemanticProvider {
       }
     }
 
+    // Accumulate caveats
+    const caveats: string[] = [];
+
+    if ((summary?.state ?? "") === "degraded") {
+      caveats.push("TS server degraded; results may be incomplete.");
+    }
+
+    if (rawHover !== null) {
+      const hoverText = extractHoverContent(rawHover.contents);
+      if (/:\s*any(\b|$)/.test(hoverText) && !/:\s*any\[/.test(hoverText)) {
+        caveats.push(
+          "Query symbol is `any`-typed; reference tracking is unreliable past this boundary.",
+        );
+      }
+    }
+
+    const spreadCount = allRefs.filter(
+      (_ref, idx) => (kindByIdx.get(idx) ?? "reference") === "spread",
+    ).length;
+    if (spreadCount > 0) {
+      caveats.push(
+        `${spreadCount} ref${spreadCount > 1 ? "s" : ""} flow through {...props} spreads; per-prop trail (e.g. className -> DOM) is not followed by LSP.`,
+      );
+    }
+
+    const queryDir = request.file.split("/").slice(0, -1).join("/");
+    const refDirs = new Set(
+      allRefs.map((r) => r.file.split("/").slice(0, -1).join("/")),
+    );
+    const crossProject = [...refDirs].some(
+      (d) =>
+        d !== queryDir && !d.startsWith(queryDir) && !queryDir.startsWith(d),
+    );
+    if (crossProject) {
+      caveats.push(
+        "Results span multiple directories; cross-project (separate tsconfig) refs may be missing.",
+      );
+    }
+
     return {
       references: allRefs.map((ref, idx) => ({
         file: ref.file,
@@ -317,6 +361,7 @@ export class LspSemanticProvider implements SemanticProvider {
           ref.column === defColumn,
         kind: kindByIdx.get(idx) ?? "reference",
       })),
+      caveats: caveats.length > 0 ? caveats : undefined,
     };
   }
 
@@ -483,7 +528,12 @@ export class LspSemanticProvider implements SemanticProvider {
 
     const items = await requestPrepareCallHierarchy(connection, uri, position);
     if (!items || items.length === 0) {
-      return { item: null };
+      return {
+        item: null,
+        caveats: [
+          "call_hierarchy only sees direct call expressions; indirect calls (dynamic import, string registries, HOC-wrapped, JSX-prop callbacks) are not captured - use grep/ast-grep.",
+        ],
+      };
     }
 
     const lspItem = items[0];
@@ -530,6 +580,19 @@ export class LspSemanticProvider implements SemanticProvider {
           containerName: c.to.detail ?? undefined,
         },
       }));
+    }
+
+    const emptyCaveats: string[] = [];
+    if (
+      (request.direction === "incoming" || request.direction === "both") &&
+      (result.incoming ?? []).length === 0
+    ) {
+      emptyCaveats.push(
+        "No callers found via call_hierarchy; indirect callers (dynamic import, string registries, HOC-wrapped, JSX-prop callbacks) are not captured - use grep/ast-grep.",
+      );
+    }
+    if (emptyCaveats.length > 0) {
+      result.caveats = emptyCaveats;
     }
 
     return result;
