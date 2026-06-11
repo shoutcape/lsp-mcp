@@ -210,6 +210,35 @@ describe("MCP server", () => {
   });
 });
 
+describe("tool description honest boundaries", () => {
+  async function getToolDescription(toolName: string): Promise<string> {
+    const server = createServer();
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const tools = await client.listTools();
+    await server.close();
+    return tools.tools.find((t) => t.name === toolName)?.description ?? "";
+  }
+
+  it("find_references description mentions string-keyed usages limitation", async () => {
+    const desc = await getToolDescription("find_references");
+    expect(desc).toContain("Does NOT find string-keyed");
+  });
+
+  it("call_hierarchy description mentions indirect calls limitation", async () => {
+    const desc = await getToolDescription("call_hierarchy");
+    expect(desc).toContain("Does NOT capture indirect");
+  });
+
+  it("hover description mentions spread site", async () => {
+    const desc = await getToolDescription("hover");
+    expect(desc).toContain("spread site");
+  });
+});
+
 describe("withInstrumentation", () => {
   afterEach(() => {
     delete process.env.LSP_MCP_DEBUG;
