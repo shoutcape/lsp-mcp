@@ -20,10 +20,15 @@ import {
 } from "./tools/capabilities.js";
 import { createDefinitionTool } from "./tools/definition.js";
 import { createDiagnosticsTool } from "./tools/diagnostics.js";
+import { createDocumentSymbolsTool } from "./tools/document-symbols.js";
 import { createHealthTool, healthToolInputSchema } from "./tools/health.js";
 import { createHoverTool } from "./tools/hover.js";
+import { createImplementationTool } from "./tools/implementation.js";
 import { createReferencesTool } from "./tools/references.js";
 import { createRenameTool } from "./tools/rename.js";
+import { createSignatureHelpTool } from "./tools/signature-help.js";
+import { createTypeDefinitionTool } from "./tools/type-definition.js";
+import { createWorkspaceSymbolsTool } from "./tools/workspace-symbols.js";
 import { resolveWorkspaceRoots } from "./workspace/resolve-roots.js";
 
 export const fileLocationInputSchema = {
@@ -50,6 +55,24 @@ export const callHierarchyInputSchema = {
   direction: z
     .enum(["incoming", "outgoing", "both"])
     .describe("Direction of call hierarchy"),
+};
+
+export const documentSymbolsInputSchema = {
+  file: z.string().describe("Absolute path to the TypeScript/JavaScript file"),
+};
+
+export const workspaceSymbolsInputSchema = {
+  query: z
+    .string()
+    .describe(
+      "Symbol name to search for (fuzzy match across the entire project)",
+    ),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Maximum results to return (default 50)"),
 };
 
 export interface ServerDependencies {
@@ -221,6 +244,94 @@ export function createServer(
       inputSchema: callHierarchyInputSchema,
     },
     createCallHierarchyTool(provider),
+  );
+
+  server.registerTool(
+    "type_definition",
+    {
+      description:
+        "Jump to the *type* declaration of a value. " +
+        "Distinct from goto_definition which jumps to the value definition - " +
+        "this follows the type to its declared interface, type alias, or class. " +
+        "Essential for navigating generics (ReturnType<F>, Awaited<T>), " +
+        "utility types, and type aliases without reading source manually. " +
+        "USE THIS INSTEAD OF goto_definition when you need to understand the shape of a type " +
+        "rather than where a value is assigned or defined. " +
+        "Does NOT resolve runtime type narrowing or conditional type branches; " +
+        "reflects the static declared type only.",
+      inputSchema: fileLocationInputSchema,
+    },
+    createTypeDefinitionTool(provider),
+  );
+
+  server.registerTool(
+    "implementation",
+    {
+      description:
+        "Find concrete implementations of an interface or abstract member. " +
+        "Returns all classes that implement an interface or all overrides of an abstract method. " +
+        "USE THIS INSTEAD OF grep when searching for 'implements X' or 'extends AbstractY' - " +
+        "understands TypeScript scope and follows type-checking, not text patterns. " +
+        "Replaces multi-step grep-for-class-extends patterns with one call. " +
+        "Does NOT find implementations in unindexed or non-TypeScript files; " +
+        "does not find dynamic mixins, Object.assign composition, or Proxy-based patterns.",
+      inputSchema: fileLocationInputSchema,
+    },
+    createImplementationTool(provider),
+  );
+
+  server.registerTool(
+    "document_symbols",
+    {
+      description:
+        "Get a structured outline of a file: functions, classes, interfaces, variables, enums, namespaces. " +
+        "USE THIS INSTEAD OF reading the whole file when you need to understand file structure " +
+        "before making targeted hover or definition calls. " +
+        "Much cheaper than reading the full file - returns symbol names, kinds, and positions. " +
+        "Hierarchical when supported (class -> methods -> properties). " +
+        "Does NOT include symbols from imported modules; " +
+        "limited to the symbols the language server indexes for the given file.",
+      inputSchema: documentSymbolsInputSchema,
+    },
+    withInstrumentation(
+      "document_symbols",
+      createDocumentSymbolsTool(provider),
+    ),
+  );
+
+  server.registerTool(
+    "workspace_symbols",
+    {
+      description:
+        "Fuzzy symbol search across the entire project by name. " +
+        "USE THIS INSTEAD OF grep when finding where a symbol is defined across multiple files. " +
+        "Faster and scope-aware vs text search - returns file, line, and symbol kind. " +
+        "One call replaces grep-for-function-name across the project. " +
+        "Does NOT search string-keyed registries, dynamic property names, or guarantee " +
+        "exhaustive results for very short or ambiguous queries; " +
+        "fuzzy matching quality depends on the language server implementation.",
+      inputSchema: workspaceSymbolsInputSchema,
+    },
+    withInstrumentation(
+      "workspace_symbols",
+      createWorkspaceSymbolsTool(provider),
+    ),
+  );
+
+  server.registerTool(
+    "signature_help",
+    {
+      description:
+        "Get parameter names, types, and active-parameter pointer at a function call site. " +
+        "USE THIS INSTEAD OF goto_definition when you need to know what arguments a function " +
+        "expects at the point of use without navigating to the function definition. " +
+        "Returns the full parameter list with names and types, which parameter is active " +
+        "(cursor position), JSDoc for the signature, and all available overloads. " +
+        "Does NOT work outside a call argument list (returns empty when cursor is not inside " +
+        "a function call); does not resolve overload selection at runtime.",
+      inputSchema: fileLocationInputSchema,
+    },
+    createSignatureHelpTool(provider),
   );
 
   return server;

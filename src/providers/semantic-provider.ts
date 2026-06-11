@@ -150,6 +150,67 @@ export interface CallHierarchyRequest extends FileLocation {
   direction: "incoming" | "outgoing" | "both";
 }
 
+export interface TypeDefinitionResult {
+  locations: DefinitionEntry[];
+}
+
+export interface ImplementationResult {
+  locations: DefinitionEntry[];
+}
+
+export type SymbolKindName = string;
+
+export interface DocumentSymbolEntry {
+  name: string;
+  kind: SymbolKindName;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+  containerName?: string;
+  children?: DocumentSymbolEntry[];
+}
+
+export interface DocumentSymbolsResult {
+  symbols: DocumentSymbolEntry[];
+}
+
+export interface WorkspaceSymbolEntry {
+  name: string;
+  kind: SymbolKindName;
+  file: string;
+  line: number;
+  column: number;
+  containerName?: string;
+}
+
+export interface WorkspaceSymbolsRequest {
+  query: string;
+  limit?: number;
+}
+
+export interface WorkspaceSymbolsResult {
+  symbols: WorkspaceSymbolEntry[];
+  caveats?: string[];
+}
+
+export interface SignatureParameter {
+  label: string;
+  documentation?: string;
+}
+
+export interface SignatureInfo {
+  label: string;
+  documentation?: string;
+  parameters: SignatureParameter[];
+}
+
+export interface SignatureHelpResult {
+  signatures: SignatureInfo[];
+  activeSignature: number;
+  activeParameter: number;
+}
+
 export interface SemanticProvider {
   getHealth(request?: HealthRequest): Promise<HealthInfo>;
   getCapabilities(request?: CapabilitiesRequest): Promise<CapabilitiesInfo>;
@@ -159,4 +220,11 @@ export interface SemanticProvider {
   getDiagnostics(request: DiagnosticsRequest): Promise<DiagnosticsResult>;
   getRename(request: RenameRequest): Promise<RenameResult>;
   getCallHierarchy(request: CallHierarchyRequest): Promise<CallHierarchyResult>;
+  getTypeDefinition(location: FileLocation): Promise<TypeDefinitionResult>;
+  getImplementation(location: FileLocation): Promise<ImplementationResult>;
+  getDocumentSymbols(file: string): Promise<DocumentSymbolsResult>;
+  getWorkspaceSymbols(
+    request: WorkspaceSymbolsRequest,
+  ): Promise<WorkspaceSymbolsResult>;
+  getSignatureHelp(location: FileLocation): Promise<SignatureHelpResult>;
 }

@@ -43,11 +43,16 @@ describe("MCP server", () => {
       "call_hierarchy",
       "capabilities",
       "diagnostics",
+      "document_symbols",
       "find_references",
       "goto_definition",
       "health",
       "hover",
+      "implementation",
       "rename",
+      "signature_help",
+      "type_definition",
+      "workspace_symbols",
     ]);
 
     const result = await client.callTool({ name: "health", arguments: {} });
@@ -236,6 +241,56 @@ describe("tool description honest boundaries", () => {
   it("hover description mentions spread site", async () => {
     const desc = await getToolDescription("hover");
     expect(desc).toContain("spread site");
+  });
+
+  it("type_definition description mentions goto_definition distinction", async () => {
+    const desc = await getToolDescription("type_definition");
+    expect(desc).toContain("goto_definition");
+  });
+
+  it("type_definition description has Does NOT clause", async () => {
+    const desc = await getToolDescription("type_definition");
+    expect(desc).toContain("Does NOT");
+  });
+
+  it("implementation description mentions interface/abstract", async () => {
+    const desc = await getToolDescription("implementation");
+    expect(desc).toContain("interface");
+  });
+
+  it("implementation description has Does NOT clause", async () => {
+    const desc = await getToolDescription("implementation");
+    expect(desc).toContain("Does NOT");
+  });
+
+  it("document_symbols description mentions USE THIS INSTEAD OF", async () => {
+    const desc = await getToolDescription("document_symbols");
+    expect(desc).toContain("USE THIS INSTEAD OF");
+  });
+
+  it("document_symbols description has Does NOT clause", async () => {
+    const desc = await getToolDescription("document_symbols");
+    expect(desc).toContain("Does NOT");
+  });
+
+  it("workspace_symbols description mentions USE THIS INSTEAD OF grep", async () => {
+    const desc = await getToolDescription("workspace_symbols");
+    expect(desc).toContain("USE THIS INSTEAD OF grep");
+  });
+
+  it("workspace_symbols description has Does NOT clause", async () => {
+    const desc = await getToolDescription("workspace_symbols");
+    expect(desc).toContain("Does NOT");
+  });
+
+  it("signature_help description mentions call site", async () => {
+    const desc = await getToolDescription("signature_help");
+    expect(desc).toContain("call site");
+  });
+
+  it("signature_help description has Does NOT clause", async () => {
+    const desc = await getToolDescription("signature_help");
+    expect(desc).toContain("Does NOT");
   });
 });
 

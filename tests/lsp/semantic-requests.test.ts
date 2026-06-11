@@ -4,11 +4,16 @@ import {
   requestCallHierarchyIncoming,
   requestCallHierarchyOutgoing,
   requestDefinition,
+  requestDocumentSymbol,
   requestHover,
+  requestImplementation,
   requestPrepareCallHierarchy,
   requestPrepareRename,
   requestReferences,
   requestRename,
+  requestSignatureHelp,
+  requestTypeDefinition,
+  requestWorkspaceSymbol,
 } from "../../src/lsp/semantic-requests.js";
 import type { LspConnection } from "../../src/lsp/types.js";
 
@@ -179,6 +184,81 @@ describe("requestCallHierarchyOutgoing", () => {
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "callHierarchy/outgoingCalls" }),
       { item },
+    );
+  });
+});
+
+describe("requestTypeDefinition", () => {
+  it("sends textDocument/typeDefinition request", async () => {
+    const conn = mockConnection([]);
+    await requestTypeDefinition(conn, "file:///a.ts", {
+      line: 3,
+      character: 8,
+    });
+    expect(conn.sendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "textDocument/typeDefinition" }),
+      {
+        textDocument: { uri: "file:///a.ts" },
+        position: { line: 3, character: 8 },
+      },
+    );
+  });
+});
+
+describe("requestImplementation", () => {
+  it("sends textDocument/implementation request", async () => {
+    const conn = mockConnection([]);
+    await requestImplementation(conn, "file:///a.ts", {
+      line: 7,
+      character: 2,
+    });
+    expect(conn.sendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "textDocument/implementation" }),
+      {
+        textDocument: { uri: "file:///a.ts" },
+        position: { line: 7, character: 2 },
+      },
+    );
+  });
+});
+
+describe("requestDocumentSymbol", () => {
+  it("sends textDocument/documentSymbol request with only textDocument", async () => {
+    const conn = mockConnection([]);
+    await requestDocumentSymbol(conn, "file:///a.ts");
+    expect(conn.sendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "textDocument/documentSymbol" }),
+      {
+        textDocument: { uri: "file:///a.ts" },
+      },
+    );
+  });
+});
+
+describe("requestWorkspaceSymbol", () => {
+  it("sends workspace/symbol request with query", async () => {
+    const conn = mockConnection([]);
+    await requestWorkspaceSymbol(conn, "useAuth");
+    expect(conn.sendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "workspace/symbol" }),
+      { query: "useAuth" },
+    );
+  });
+});
+
+describe("requestSignatureHelp", () => {
+  it("sends textDocument/signatureHelp request", async () => {
+    const conn = mockConnection(null);
+    await requestSignatureHelp(conn, "file:///a.ts", {
+      line: 10,
+      character: 15,
+    });
+    expect(conn.sendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "textDocument/signatureHelp" }),
+      {
+        textDocument: { uri: "file:///a.ts" },
+        position: { line: 10, character: 15 },
+      },
     );
   });
 });

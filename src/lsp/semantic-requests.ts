@@ -7,14 +7,22 @@ import {
   CallHierarchyPrepareRequest,
   type Definition,
   DefinitionRequest,
+  type DocumentSymbol,
+  DocumentSymbolRequest,
   type Hover,
   HoverRequest,
+  ImplementationRequest,
   type Location,
   type Position,
   PrepareRenameRequest,
   ReferencesRequest,
   RenameRequest,
+  type SignatureHelp,
+  SignatureHelpRequest,
+  type SymbolInformation,
+  TypeDefinitionRequest,
   type WorkspaceEdit,
+  WorkspaceSymbolRequest,
 } from "vscode-languageserver-protocol";
 
 import type { LspConnection } from "./types.js";
@@ -105,4 +113,55 @@ export async function requestCallHierarchyOutgoing(
   return connection.sendRequest(CallHierarchyOutgoingCallsRequest.type, {
     item,
   }) as Promise<CallHierarchyOutgoingCall[] | null>;
+}
+
+export async function requestTypeDefinition(
+  connection: LspConnection,
+  uri: string,
+  position: Position,
+): Promise<Definition | null> {
+  return connection.sendRequest(TypeDefinitionRequest.type, {
+    textDocument: { uri },
+    position,
+  }) as Promise<Definition | null>;
+}
+
+export async function requestImplementation(
+  connection: LspConnection,
+  uri: string,
+  position: Position,
+): Promise<Definition | null> {
+  return connection.sendRequest(ImplementationRequest.type, {
+    textDocument: { uri },
+    position,
+  }) as Promise<Definition | null>;
+}
+
+export async function requestDocumentSymbol(
+  connection: LspConnection,
+  uri: string,
+): Promise<DocumentSymbol[] | SymbolInformation[] | null> {
+  return connection.sendRequest(DocumentSymbolRequest.type, {
+    textDocument: { uri },
+  }) as Promise<DocumentSymbol[] | SymbolInformation[] | null>;
+}
+
+export async function requestWorkspaceSymbol(
+  connection: LspConnection,
+  query: string,
+): Promise<SymbolInformation[] | null> {
+  return connection.sendRequest(WorkspaceSymbolRequest.type, {
+    query,
+  }) as Promise<SymbolInformation[] | null>;
+}
+
+export async function requestSignatureHelp(
+  connection: LspConnection,
+  uri: string,
+  position: Position,
+): Promise<SignatureHelp | null> {
+  return connection.sendRequest(SignatureHelpRequest.type, {
+    textDocument: { uri },
+    position,
+  }) as Promise<SignatureHelp | null>;
 }

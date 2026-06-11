@@ -91,6 +91,11 @@ describe("LspSemanticProvider", () => {
         "diagnostics",
         "rename",
         "call_hierarchy",
+        "type_definition",
+        "implementation",
+        "document_symbols",
+        "workspace_symbols",
+        "signature_help",
       ],
       lsp: "implemented",
       serverCapabilities,
@@ -580,5 +585,391 @@ describe("getReferences caveats", () => {
     });
     // item is null (prepareCallHierarchy returned null) -> caveat
     expect(result.caveats?.some((c) => c.includes("indirect"))).toBe(true);
+  });
+
+  // ---- Task 3: getTypeDefinition + getImplementation ----
+
+  function makeManagerWithConnection(
+    sendRequestImpl: (
+      method: { method: string },
+      params: unknown,
+    ) => Promise<unknown>,
+  ) {
+    const mockConnection = {
+      listen: vi.fn(),
+      sendRequest: vi.fn().mockImplementation(sendRequestImpl),
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      onNotification: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const manager: LspProviderSessionManager = {
+      getSummary: vi.fn(() => ({
+        state: "ready" as const,
+        message: "ready",
+        serverCapabilities: [],
+      })),
+      ensureSession: vi.fn().mockResolvedValue({
+        info: {
+          state: "ready" as const,
+          message: "ready",
+          serverCapabilities: [],
+        },
+        session: {
+          getConnection: vi.fn(() => mockConnection),
+          prepareFile: vi.fn().mockResolvedValue("opened"),
+        },
+      }),
+    };
+    return { manager, mockConnection };
+  }
+
+  it("getTypeDefinition maps LSP Location to 1-based entry", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          uri: "file:///project/types.ts",
+          range: {
+            start: { line: 2, character: 0 },
+            end: { line: 2, character: 12 },
+          },
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getTypeDefinition({
+      file: "/project/a.ts",
+      line: 1,
+      column: 5,
+    });
+    expect(result.locations).toHaveLength(1);
+    expect(result.locations[0]).toMatchObject({
+      file: "/project/types.ts",
+      line: 3, // 0-based 2 -> 1-based 3
+      column: 1, // 0-based 0 -> 1-based 1
+    });
+  });
+
+  it("getTypeDefinition returns empty locations when LSP returns null", async () => {
+    const { manager } = makeManagerWithConnection(() => Promise.resolve(null));
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getTypeDefinition({
+      file: "/project/a.ts",
+      line: 1,
+      column: 5,
+    });
+    expect(result.locations).toHaveLength(0);
+  });
+
+  it("getImplementation maps LSP Location to 1-based entry", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          uri: "file:///project/impl.ts",
+          range: {
+            start: { line: 9, character: 2 },
+            end: { line: 9, character: 10 },
+          },
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getImplementation({
+      file: "/project/a.ts",
+      line: 5,
+      column: 8,
+    });
+    expect(result.locations).toHaveLength(1);
+    expect(result.locations[0]).toMatchObject({
+      file: "/project/impl.ts",
+      line: 10,
+      column: 3,
+    });
+  });
+
+  it("getImplementation returns empty locations when LSP returns null", async () => {
+    const { manager } = makeManagerWithConnection(() => Promise.resolve(null));
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getImplementation({
+      file: "/project/a.ts",
+      line: 1,
+      column: 1,
+    });
+    expect(result.locations).toHaveLength(0);
+  });
+
+  // ---- Task 4: getDocumentSymbols ----
+
+  it("getDocumentSymbols maps hierarchical DocumentSymbol[] to entries", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          name: "MyClass",
+          kind: 5, // Class
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 10, character: 1 },
+          },
+          selectionRange: {
+            start: { line: 0, character: 6 },
+            end: { line: 0, character: 13 },
+          },
+          children: [
+            {
+              name: "constructor",
+              kind: 9, // Constructor
+              range: {
+                start: { line: 1, character: 2 },
+                end: { line: 3, character: 3 },
+              },
+              selectionRange: {
+                start: { line: 1, character: 2 },
+                end: { line: 1, character: 13 },
+              },
+              children: [],
+            },
+          ],
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getDocumentSymbols("/project/a.ts");
+    expect(result.symbols).toHaveLength(1);
+    const cls = result.symbols[0];
+    expect(cls?.name).toBe("MyClass");
+    expect(cls?.kind).toBe("class");
+    expect(cls?.line).toBe(1); // 0-based 0 -> 1-based 1
+    expect(cls?.column).toBe(7); // selectionRange start char 6 -> 7
+    expect(cls?.endLine).toBe(11);
+    expect(cls?.endColumn).toBe(2);
+    expect(cls?.children).toHaveLength(1);
+    expect(cls?.children?.[0]?.name).toBe("constructor");
+    expect(cls?.children?.[0]?.kind).toBe("constructor");
+  });
+
+  it("getDocumentSymbols maps flat SymbolInformation[] to entries", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          name: "myFunc",
+          kind: 12, // Function
+          containerName: "MyModule",
+          location: {
+            uri: "file:///project/a.ts",
+            range: {
+              start: { line: 4, character: 0 },
+              end: { line: 8, character: 1 },
+            },
+          },
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getDocumentSymbols("/project/a.ts");
+    expect(result.symbols).toHaveLength(1);
+    const fn = result.symbols[0];
+    expect(fn?.name).toBe("myFunc");
+    expect(fn?.kind).toBe("function");
+    expect(fn?.containerName).toBe("MyModule");
+    expect(fn?.line).toBe(5);
+    expect(fn?.column).toBe(1);
+    expect(fn?.endLine).toBe(9);
+    expect(fn?.endColumn).toBe(2);
+  });
+
+  it("getDocumentSymbols returns empty symbols when LSP returns null", async () => {
+    const { manager } = makeManagerWithConnection(() => Promise.resolve(null));
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getDocumentSymbols("/project/a.ts");
+    expect(result.symbols).toHaveLength(0);
+  });
+
+  it("getDocumentSymbols maps SymbolKind 12 (Function) to 'Function'", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          name: "myFunc",
+          kind: 12,
+          location: {
+            uri: "file:///project/a.ts",
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 2, character: 1 },
+            },
+          },
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getDocumentSymbols("/project/a.ts");
+    expect(result.symbols[0]?.kind).toBe("function");
+  });
+
+  it("getDocumentSymbols maps unknown SymbolKind to 'unknown'", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          name: "x",
+          kind: 999,
+          location: {
+            uri: "file:///project/a.ts",
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 5 },
+            },
+          },
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getDocumentSymbols("/project/a.ts");
+    expect(result.symbols[0]?.kind).toBe("unknown");
+  });
+
+  // ---- Task 5: getWorkspaceSymbols ----
+
+  it("getWorkspaceSymbols maps SymbolInformation to entries", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve([
+        {
+          name: "useAuth",
+          kind: 12, // Function
+          containerName: "hooks",
+          location: {
+            uri: "file:///project/hooks/auth.ts",
+            range: {
+              start: { line: 11, character: 0 },
+              end: { line: 20, character: 1 },
+            },
+          },
+        },
+      ]),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getWorkspaceSymbols({ query: "useAuth" });
+    expect(result.symbols).toHaveLength(1);
+    expect(result.symbols[0]).toMatchObject({
+      name: "useAuth",
+      kind: "function",
+      containerName: "hooks",
+      file: "/project/hooks/auth.ts",
+      line: 12,
+      column: 1,
+    });
+    expect(result.caveats).toBeUndefined();
+  });
+
+  it("getWorkspaceSymbols emits truncation caveat when results hit limit", async () => {
+    const symbols = Array.from({ length: 5 }, (_, i) => ({
+      name: `sym${i}`,
+      kind: 13,
+      location: {
+        uri: "file:///project/a.ts",
+        range: {
+          start: { line: i, character: 0 },
+          end: { line: i, character: 3 },
+        },
+      },
+    }));
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve(symbols),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getWorkspaceSymbols({
+      query: "sym",
+      limit: 5,
+    });
+    expect(result.symbols).toHaveLength(5);
+    expect(
+      result.caveats?.some(
+        (c) =>
+          c.includes("truncated") ||
+          c.includes("Truncated") ||
+          c.includes("narrow"),
+      ),
+    ).toBe(true);
+  });
+
+  it("getWorkspaceSymbols returns empty when LSP returns null", async () => {
+    const { manager } = makeManagerWithConnection(() => Promise.resolve(null));
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getWorkspaceSymbols({ query: "x" });
+    expect(result.symbols).toHaveLength(0);
+  });
+
+  // ---- Task 6: getSignatureHelp ----
+
+  it("getSignatureHelp maps SignatureHelp to result", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve({
+        signatures: [
+          {
+            label: "createServer(deps?: ServerDependencies): McpServer",
+            documentation: { kind: "markdown", value: "Creates a server." },
+            parameters: [
+              { label: "deps?: ServerDependencies" },
+              { label: "opts?: ServerOptions" },
+            ],
+          },
+        ],
+        activeSignature: 0,
+        activeParameter: 1,
+      }),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getSignatureHelp({
+      file: "/project/a.ts",
+      line: 10,
+      column: 20,
+    });
+    expect(result.signatures).toHaveLength(1);
+    expect(result.signatures[0]?.label).toBe(
+      "createServer(deps?: ServerDependencies): McpServer",
+    );
+    expect(result.signatures[0]?.parameters).toHaveLength(2);
+    expect(result.signatures[0]?.parameters[0]?.label).toBe(
+      "deps?: ServerDependencies",
+    );
+    expect(result.activeSignature).toBe(0);
+    expect(result.activeParameter).toBe(1);
+  });
+
+  it("getSignatureHelp returns empty result when LSP returns null", async () => {
+    const { manager } = makeManagerWithConnection(() => Promise.resolve(null));
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getSignatureHelp({
+      file: "/project/a.ts",
+      line: 1,
+      column: 1,
+    });
+    expect(result.signatures).toHaveLength(0);
+    expect(result.activeSignature).toBe(0);
+    expect(result.activeParameter).toBe(0);
+  });
+
+  it("getSignatureHelp handles parameter label as [start, end] offsets", async () => {
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve({
+        signatures: [
+          {
+            label: "fn(x: number, y: string): void",
+            parameters: [
+              { label: [3, 12] as [number, number] }, // "x: number"
+              { label: [14, 23] as [number, number] }, // "y: string"
+            ],
+          },
+        ],
+        activeSignature: 0,
+        activeParameter: 0,
+      }),
+    );
+    const provider = new LspSemanticProvider({ manager });
+    const result = await provider.getSignatureHelp({
+      file: "/project/a.ts",
+      line: 1,
+      column: 1,
+    });
+    // Labels extracted as substrings of signature label
+    expect(result.signatures[0]?.parameters[0]?.label).toBe("x: number");
+    expect(result.signatures[0]?.parameters[1]?.label).toBe("y: string");
   });
 });

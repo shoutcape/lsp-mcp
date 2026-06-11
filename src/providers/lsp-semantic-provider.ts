@@ -9,11 +9,16 @@ import {
   requestCallHierarchyIncoming,
   requestCallHierarchyOutgoing,
   requestDefinition,
+  requestDocumentSymbol,
   requestHover,
+  requestImplementation,
   requestPrepareCallHierarchy,
   requestPrepareRename,
   requestReferences,
   requestRename,
+  requestSignatureHelp,
+  requestTypeDefinition,
+  requestWorkspaceSymbol,
 } from "../lsp/semantic-requests.js";
 import type {
   EnsureSessionResult,
@@ -25,13 +30,17 @@ import type {
   CallHierarchyResult,
   CapabilitiesInfo,
   CapabilitiesRequest,
+  DefinitionEntry,
   DefinitionResult,
   DiagnosticsRequest,
   DiagnosticsResult,
+  DocumentSymbolEntry,
+  DocumentSymbolsResult,
   FileLocation,
   HealthInfo,
   HealthRequest,
   HoverResult,
+  ImplementationResult,
   ReferencesRequest,
   ReferencesResult,
   RenameLocation,
@@ -39,6 +48,10 @@ import type {
   RenameResult,
   SemanticProvider,
   SetupErrorInfo,
+  SignatureHelpResult,
+  TypeDefinitionResult,
+  WorkspaceSymbolsRequest,
+  WorkspaceSymbolsResult,
 } from "./semantic-provider.js";
 
 const supportedTools = [
@@ -50,6 +63,11 @@ const supportedTools = [
   "diagnostics",
   "rename",
   "call_hierarchy",
+  "type_definition",
+  "implementation",
+  "document_symbols",
+  "workspace_symbols",
+  "signature_help",
 ];
 
 const SYMBOL_KIND_NAMES: Record<number, string> = {
@@ -100,17 +118,20 @@ export interface LspSemanticProviderOptions {
   manager: LspProviderSessionManager | LspSessionManager;
   setupError?: SetupErrorInfo;
   readFile?: (path: string) => Promise<string>; // injectable for tests
+  workspaceRoot?: string; // used for workspace-level queries (workspace_symbols)
 }
 
 export class LspSemanticProvider implements SemanticProvider {
   private readonly manager: LspProviderSessionManager;
   private readonly setupError: SetupErrorInfo | undefined;
   private readonly readFile: (path: string) => Promise<string>;
+  private readonly workspaceRoot: string;
 
   constructor(options: LspSemanticProviderOptions) {
     this.manager = options.manager;
     this.setupError = options.setupError;
     this.readFile = options.readFile ?? ((p) => fsReadFile(p, "utf8"));
+    this.workspaceRoot = options.workspaceRoot ?? ".";
   }
 
   async getHealth(request: HealthRequest = {}): Promise<HealthInfo> {
@@ -185,30 +206,231 @@ export class LspSemanticProvider implements SemanticProvider {
       throw new Error("LSP connection unavailable.");
 
     const result = await requestDefinition(connection, uri, position);
-    if (result === null) return { definitions: [] };
+    return { definitions: mapLocations(result) };
+  }
 
-    type AnyLoc = {
-      uri?: string;
-      targetUri?: string;
-      range?: { start: { line: number; character: number } };
-      targetRange?: { start: { line: number; character: number } };
-      targetSelectionRange?: { start: { line: number; character: number } };
+  async getTypeDefinition(
+    location: FileLocation,
+  ): Promise<TypeDefinitionResult> {
+    const { info, session } = await this.manager.ensureSession(location.file);
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const uri = pathToFileURL(location.file).toString();
+    const position = {
+      line: location.line - 1,
+      character: location.column - 1,
     };
-    const locations = (Array.isArray(result) ? result : [result]) as AnyLoc[];
-    return {
-      definitions: locations.map((loc) => {
-        const targetUri = (loc.targetUri ?? loc.uri) as string;
-        const targetRange =
-          loc.targetSelectionRange ?? loc.targetRange ?? loc.range;
-        if (targetRange === undefined) {
-          return { file: fileURLToPath(targetUri), line: 1, column: 1 };
-        }
-        return {
-          file: fileURLToPath(targetUri),
-          line: targetRange.start.line + 1,
-          column: targetRange.start.character + 1,
+    await session.prepareFile(location.file, languageIdForFile(location.file));
+
+    const connection = session.getConnection();
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
+
+    const result = await requestTypeDefinition(connection, uri, position);
+    return { locations: mapLocations(result) };
+  }
+
+  async getImplementation(
+    location: FileLocation,
+  ): Promise<ImplementationResult> {
+    const { info, session } = await this.manager.ensureSession(location.file);
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const uri = pathToFileURL(location.file).toString();
+    const position = {
+      line: location.line - 1,
+      character: location.column - 1,
+    };
+    await session.prepareFile(location.file, languageIdForFile(location.file));
+
+    const connection = session.getConnection();
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
+
+    const result = await requestImplementation(connection, uri, position);
+    return { locations: mapLocations(result) };
+  }
+
+  async getDocumentSymbols(file: string): Promise<DocumentSymbolsResult> {
+    const { info, session } = await this.manager.ensureSession(file);
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const uri = pathToFileURL(file).toString();
+    await session.prepareFile(file, languageIdForFile(file));
+
+    const connection = session.getConnection();
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
+
+    const result = await requestDocumentSymbol(connection, uri);
+    if (result === null || result.length === 0) return { symbols: [] };
+
+    // Detect shape: DocumentSymbol has selectionRange, SymbolInformation has location
+    const isHierarchical = result.length > 0 && "selectionRange" in result[0];
+
+    if (isHierarchical) {
+      type DocSym = {
+        name: string;
+        kind: number;
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
         };
-      }),
+        selectionRange: { start: { line: number; character: number } };
+        children?: DocSym[];
+      };
+      const mapDocSym = (sym: DocSym): DocumentSymbolEntry => ({
+        name: sym.name,
+        kind: symbolKindName(sym.kind),
+        line: sym.selectionRange.start.line + 1,
+        column: sym.selectionRange.start.character + 1,
+        endLine: sym.range.end.line + 1,
+        endColumn: sym.range.end.character + 1,
+        children: sym.children?.map(mapDocSym),
+      });
+      return { symbols: (result as DocSym[]).map(mapDocSym) };
+    }
+
+    // Flat SymbolInformation[]
+    type SymInfo = {
+      name: string;
+      kind: number;
+      containerName?: string;
+      location: {
+        uri: string;
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
+      };
+    };
+    return {
+      symbols: (result as SymInfo[]).map((sym) => ({
+        name: sym.name,
+        kind: symbolKindName(sym.kind),
+        line: sym.location.range.start.line + 1,
+        column: sym.location.range.start.character + 1,
+        endLine: sym.location.range.end.line + 1,
+        endColumn: sym.location.range.end.character + 1,
+        containerName: sym.containerName,
+      })),
+    };
+  }
+
+  async getWorkspaceSymbols(
+    request: WorkspaceSymbolsRequest,
+  ): Promise<WorkspaceSymbolsResult> {
+    const limit = request.limit ?? 50;
+
+    // Workspace symbols are not file-specific; use the configured workspace root
+    // to resolve a session. If no session is ready, throw.
+    const { info, session } = await this.manager.ensureSession(
+      this.workspaceRoot,
+    );
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const connection = session.getConnection();
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
+
+    const rawResult = await requestWorkspaceSymbol(connection, request.query);
+    if (rawResult === null) return { symbols: [] };
+
+    const capped = rawResult.slice(0, limit);
+    const truncated = rawResult.length >= limit;
+
+    type SymInfo = {
+      name: string;
+      kind: number;
+      containerName?: string;
+      location: {
+        uri: string;
+        range: { start: { line: number; character: number } };
+      };
+    };
+
+    const symbols = (capped as SymInfo[]).map((sym) => ({
+      name: sym.name,
+      kind: symbolKindName(sym.kind),
+      file: fileURLToPath(sym.location.uri),
+      line: sym.location.range.start.line + 1,
+      column: sym.location.range.start.character + 1,
+      containerName: sym.containerName,
+    }));
+
+    const caveats = truncated
+      ? [
+          `Results truncated at ${limit}. Narrow query or increase limit for more precise results.`,
+        ]
+      : undefined;
+
+    return { symbols, caveats };
+  }
+
+  async getSignatureHelp(location: FileLocation): Promise<SignatureHelpResult> {
+    const { info, session } = await this.manager.ensureSession(location.file);
+    if (info.state !== "ready") {
+      throw new Error(`LSP session not ready: ${info.message}`);
+    }
+
+    const uri = pathToFileURL(location.file).toString();
+    const position = {
+      line: location.line - 1,
+      character: location.column - 1,
+    };
+    await session.prepareFile(location.file, languageIdForFile(location.file));
+
+    const connection = session.getConnection();
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
+
+    const result = await requestSignatureHelp(connection, uri, position);
+    if (result === null || result.signatures.length === 0) {
+      return { signatures: [], activeSignature: 0, activeParameter: 0 };
+    }
+
+    type SigParam = {
+      label: string | [number, number];
+      documentation?: string | { value: string };
+    };
+    type Sig = {
+      label: string;
+      documentation?: string | { value: string };
+      parameters?: SigParam[];
+    };
+
+    const signatures = (result.signatures as Sig[]).map((sig) => ({
+      label: sig.label,
+      documentation: sig.documentation
+        ? typeof sig.documentation === "string"
+          ? sig.documentation
+          : sig.documentation.value
+        : undefined,
+      parameters: (sig.parameters ?? []).map((param) => ({
+        label:
+          typeof param.label === "string"
+            ? param.label
+            : sig.label.slice(param.label[0], param.label[1]),
+        documentation: param.documentation
+          ? typeof param.documentation === "string"
+            ? param.documentation
+            : param.documentation.value
+          : undefined,
+      })),
+    }));
+
+    return {
+      signatures,
+      activeSignature: result.activeSignature ?? 0,
+      activeParameter: result.activeParameter ?? 0,
     };
   }
 
@@ -601,6 +823,35 @@ export class LspSemanticProvider implements SemanticProvider {
 
 function cloneSetupError(setupError: SetupErrorInfo): SetupErrorInfo {
   return { ...setupError };
+}
+
+/**
+ * Maps an LSP Definition/Implementation result (Location, Location[], LocationLink[])
+ * to a normalized 1-based DefinitionEntry array. Returns [] for null.
+ */
+function mapLocations(result: unknown): DefinitionEntry[] {
+  if (result === null || result === undefined) return [];
+  type AnyLoc = {
+    uri?: string;
+    targetUri?: string;
+    range?: { start: { line: number; character: number } };
+    targetRange?: { start: { line: number; character: number } };
+    targetSelectionRange?: { start: { line: number; character: number } };
+  };
+  const locs = (Array.isArray(result) ? result : [result]) as AnyLoc[];
+  return locs.map((loc) => {
+    const targetUri = (loc.targetUri ?? loc.uri) as string;
+    const targetRange =
+      loc.targetSelectionRange ?? loc.targetRange ?? loc.range;
+    if (targetRange === undefined) {
+      return { file: fileURLToPath(targetUri), line: 1, column: 1 };
+    }
+    return {
+      file: fileURLToPath(targetUri),
+      line: targetRange.start.line + 1,
+      column: targetRange.start.character + 1,
+    };
+  });
 }
 
 function toHealthInfo(info: LspProviderSessionInfo): HealthInfo {
