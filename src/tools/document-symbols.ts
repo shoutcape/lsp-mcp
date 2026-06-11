@@ -32,9 +32,9 @@ export function formatDocumentSymbolsResult(
 }
 
 export function createDocumentSymbolsTool(provider: SemanticProvider) {
-  return async function documentSymbols(
-    input: { file: string },
-  ): Promise<CallToolResult> {
+  return async function documentSymbols(input: {
+    file: string;
+  }): Promise<CallToolResult> {
     const result = await provider.getDocumentSymbols(input.file);
     return textResult(formatDocumentSymbolsResult(input.file, result));
   };

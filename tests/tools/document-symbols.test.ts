@@ -15,8 +15,22 @@ describe("formatDocumentSymbolsResult", () => {
   it("formats flat symbols list", () => {
     const result: DocumentSymbolsResult = {
       symbols: [
-        { name: "Button", kind: "function", line: 5, column: 1, endLine: 20, endColumn: 2 },
-        { name: "ButtonProps", kind: "interface", line: 1, column: 1, endLine: 4, endColumn: 2 },
+        {
+          name: "Button",
+          kind: "function",
+          line: 5,
+          column: 1,
+          endLine: 20,
+          endColumn: 2,
+        },
+        {
+          name: "ButtonProps",
+          kind: "interface",
+          line: 1,
+          column: 1,
+          endLine: 4,
+          endColumn: 2,
+        },
       ],
     };
     const text = formatDocumentSymbolsResult(file, result);
@@ -38,7 +52,14 @@ describe("formatDocumentSymbolsResult", () => {
           endLine: 20,
           endColumn: 1,
           children: [
-            { name: "constructor", kind: "constructor", line: 2, column: 3, endLine: 5, endColumn: 4 },
+            {
+              name: "constructor",
+              kind: "constructor",
+              line: 2,
+              column: 3,
+              endLine: 5,
+              endColumn: 4,
+            },
           ],
         },
       ],
@@ -52,7 +73,14 @@ describe("formatDocumentSymbolsResult", () => {
   it("shows file header", () => {
     const result: DocumentSymbolsResult = {
       symbols: [
-        { name: "x", kind: "variable", line: 1, column: 1, endLine: 1, endColumn: 5 },
+        {
+          name: "x",
+          kind: "variable",
+          line: 1,
+          column: 1,
+          endLine: 1,
+          endColumn: 5,
+        },
       ],
     };
     const text = formatDocumentSymbolsResult(file, result);

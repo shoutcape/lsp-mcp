@@ -40,7 +40,9 @@ describe("formatWorkspaceSymbolsResult", () => {
       symbols: [
         { name: "x", kind: "variable", file: "/src/a.ts", line: 1, column: 1 },
       ],
-      caveats: ["Results truncated at 50. Narrow query or increase limit for more precise results."],
+      caveats: [
+        "Results truncated at 50. Narrow query or increase limit for more precise results.",
+      ],
     };
     const text = formatWorkspaceSymbolsResult(request, result);
     expect(text).toContain("caveats:");
@@ -49,7 +51,9 @@ describe("formatWorkspaceSymbolsResult", () => {
 
   it("no caveats block when caveats absent", () => {
     const result: WorkspaceSymbolsResult = {
-      symbols: [{ name: "y", kind: "class", file: "/src/b.ts", line: 2, column: 1 }],
+      symbols: [
+        { name: "y", kind: "class", file: "/src/b.ts", line: 2, column: 1 },
+      ],
     };
     const text = formatWorkspaceSymbolsResult(request, result);
     expect(text).not.toContain("caveats:");

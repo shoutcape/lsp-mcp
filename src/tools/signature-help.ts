@@ -22,7 +22,9 @@ export function formatSignatureHelpResult(
     `Signature help at ${location.file}:${location.line}:${location.column}:\n`,
   ];
 
-  const active = result.signatures[result.activeSignature] as SignatureInfo | undefined;
+  const active = result.signatures[result.activeSignature] as
+    | SignatureInfo
+    | undefined;
 
   if (active !== undefined) {
     lines.push(`  ${active.label}`);
@@ -31,7 +33,9 @@ export function formatSignatureHelpResult(
     }
     const activeParam = active.parameters[result.activeParameter];
     if (activeParam !== undefined) {
-      lines.push(`  Active parameter: ${activeParam.label} (${result.activeParameter})`);
+      lines.push(
+        `  Active parameter: ${activeParam.label} (${result.activeParameter})`,
+      );
     } else {
       lines.push(`  Active parameter: ${result.activeParameter}`);
     }

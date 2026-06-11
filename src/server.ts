@@ -64,7 +64,9 @@ export const documentSymbolsInputSchema = {
 export const workspaceSymbolsInputSchema = {
   query: z
     .string()
-    .describe("Symbol name to search for (fuzzy match across the entire project)"),
+    .describe(
+      "Symbol name to search for (fuzzy match across the entire project)",
+    ),
   limit: z
     .number()
     .int()

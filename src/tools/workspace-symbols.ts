@@ -29,10 +29,14 @@ export function formatWorkspaceSymbolsResult(
   const lines = [`Workspace symbols for "${request.query}":\n`];
   for (const sym of result.symbols) {
     const container = sym.containerName ? ` (in ${sym.containerName})` : "";
-    lines.push(`  ${sym.name}${container} [${sym.kind}] ${sym.file}:${sym.line}:${sym.column}`);
+    lines.push(
+      `  ${sym.name}${container} [${sym.kind}] ${sym.file}:${sym.line}:${sym.column}`,
+    );
   }
   lines.push("");
-  lines.push(`Result: ${result.symbols.length} symbol${result.symbols.length === 1 ? "" : "s"}`);
+  lines.push(
+    `Result: ${result.symbols.length} symbol${result.symbols.length === 1 ? "" : "s"}`,
+  );
 
   return lines.join("\n") + renderCaveats(result.caveats);
 }

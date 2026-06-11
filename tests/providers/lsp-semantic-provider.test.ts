@@ -590,7 +590,10 @@ describe("getReferences caveats", () => {
   // ---- Task 3: getTypeDefinition + getImplementation ----
 
   function makeManagerWithConnection(
-    sendRequestImpl: (method: { method: string }, params: unknown) => Promise<unknown>,
+    sendRequestImpl: (
+      method: { method: string },
+      params: unknown,
+    ) => Promise<unknown>,
   ) {
     const mockConnection = {
       listen: vi.fn(),
@@ -606,7 +609,11 @@ describe("getReferences caveats", () => {
         serverCapabilities: [],
       })),
       ensureSession: vi.fn().mockResolvedValue({
-        info: { state: "ready" as const, message: "ready", serverCapabilities: [] },
+        info: {
+          state: "ready" as const,
+          message: "ready",
+          serverCapabilities: [],
+        },
         session: {
           getConnection: vi.fn(() => mockConnection),
           prepareFile: vi.fn().mockResolvedValue("opened"),
@@ -698,14 +705,26 @@ describe("getReferences caveats", () => {
         {
           name: "MyClass",
           kind: 5, // Class
-          range: { start: { line: 0, character: 0 }, end: { line: 10, character: 1 } },
-          selectionRange: { start: { line: 0, character: 6 }, end: { line: 0, character: 13 } },
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 10, character: 1 },
+          },
+          selectionRange: {
+            start: { line: 0, character: 6 },
+            end: { line: 0, character: 13 },
+          },
           children: [
             {
               name: "constructor",
               kind: 9, // Constructor
-              range: { start: { line: 1, character: 2 }, end: { line: 3, character: 3 } },
-              selectionRange: { start: { line: 1, character: 2 }, end: { line: 1, character: 13 } },
+              range: {
+                start: { line: 1, character: 2 },
+                end: { line: 3, character: 3 },
+              },
+              selectionRange: {
+                start: { line: 1, character: 2 },
+                end: { line: 1, character: 13 },
+              },
               children: [],
             },
           ],
@@ -772,7 +791,10 @@ describe("getReferences caveats", () => {
           kind: 12,
           location: {
             uri: "file:///project/a.ts",
-            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 2, character: 1 },
+            },
           },
         },
       ]),
@@ -790,7 +812,10 @@ describe("getReferences caveats", () => {
           kind: 999,
           location: {
             uri: "file:///project/a.ts",
-            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 5 },
+            },
           },
         },
       ]),
@@ -811,7 +836,10 @@ describe("getReferences caveats", () => {
           containerName: "hooks",
           location: {
             uri: "file:///project/hooks/auth.ts",
-            range: { start: { line: 11, character: 0 }, end: { line: 20, character: 1 } },
+            range: {
+              start: { line: 11, character: 0 },
+              end: { line: 20, character: 1 },
+            },
           },
         },
       ]),
@@ -836,14 +864,29 @@ describe("getReferences caveats", () => {
       kind: 13,
       location: {
         uri: "file:///project/a.ts",
-        range: { start: { line: i, character: 0 }, end: { line: i, character: 3 } },
+        range: {
+          start: { line: i, character: 0 },
+          end: { line: i, character: 3 },
+        },
       },
     }));
-    const { manager } = makeManagerWithConnection(() => Promise.resolve(symbols));
+    const { manager } = makeManagerWithConnection(() =>
+      Promise.resolve(symbols),
+    );
     const provider = new LspSemanticProvider({ manager });
-    const result = await provider.getWorkspaceSymbols({ query: "sym", limit: 5 });
+    const result = await provider.getWorkspaceSymbols({
+      query: "sym",
+      limit: 5,
+    });
     expect(result.symbols).toHaveLength(5);
-    expect(result.caveats?.some((c) => c.includes("truncated") || c.includes("Truncated") || c.includes("narrow"))).toBe(true);
+    expect(
+      result.caveats?.some(
+        (c) =>
+          c.includes("truncated") ||
+          c.includes("Truncated") ||
+          c.includes("narrow"),
+      ),
+    ).toBe(true);
   });
 
   it("getWorkspaceSymbols returns empty when LSP returns null", async () => {

@@ -209,35 +209,47 @@ export class LspSemanticProvider implements SemanticProvider {
     return { definitions: mapLocations(result) };
   }
 
-  async getTypeDefinition(location: FileLocation): Promise<TypeDefinitionResult> {
+  async getTypeDefinition(
+    location: FileLocation,
+  ): Promise<TypeDefinitionResult> {
     const { info, session } = await this.manager.ensureSession(location.file);
     if (info.state !== "ready") {
       throw new Error(`LSP session not ready: ${info.message}`);
     }
 
     const uri = pathToFileURL(location.file).toString();
-    const position = { line: location.line - 1, character: location.column - 1 };
+    const position = {
+      line: location.line - 1,
+      character: location.column - 1,
+    };
     await session.prepareFile(location.file, languageIdForFile(location.file));
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const result = await requestTypeDefinition(connection, uri, position);
     return { locations: mapLocations(result) };
   }
 
-  async getImplementation(location: FileLocation): Promise<ImplementationResult> {
+  async getImplementation(
+    location: FileLocation,
+  ): Promise<ImplementationResult> {
     const { info, session } = await this.manager.ensureSession(location.file);
     if (info.state !== "ready") {
       throw new Error(`LSP session not ready: ${info.message}`);
     }
 
     const uri = pathToFileURL(location.file).toString();
-    const position = { line: location.line - 1, character: location.column - 1 };
+    const position = {
+      line: location.line - 1,
+      character: location.column - 1,
+    };
     await session.prepareFile(location.file, languageIdForFile(location.file));
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const result = await requestImplementation(connection, uri, position);
     return { locations: mapLocations(result) };
@@ -253,20 +265,23 @@ export class LspSemanticProvider implements SemanticProvider {
     await session.prepareFile(file, languageIdForFile(file));
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const result = await requestDocumentSymbol(connection, uri);
     if (result === null || result.length === 0) return { symbols: [] };
 
     // Detect shape: DocumentSymbol has selectionRange, SymbolInformation has location
-    const isHierarchical =
-      result.length > 0 && "selectionRange" in result[0];
+    const isHierarchical = result.length > 0 && "selectionRange" in result[0];
 
     if (isHierarchical) {
       type DocSym = {
         name: string;
         kind: number;
-        range: { start: { line: number; character: number }; end: { line: number; character: number } };
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
         selectionRange: { start: { line: number; character: number } };
         children?: DocSym[];
       };
@@ -289,7 +304,10 @@ export class LspSemanticProvider implements SemanticProvider {
       containerName?: string;
       location: {
         uri: string;
-        range: { start: { line: number; character: number }; end: { line: number; character: number } };
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
       };
     };
     return {
@@ -305,18 +323,23 @@ export class LspSemanticProvider implements SemanticProvider {
     };
   }
 
-  async getWorkspaceSymbols(request: WorkspaceSymbolsRequest): Promise<WorkspaceSymbolsResult> {
+  async getWorkspaceSymbols(
+    request: WorkspaceSymbolsRequest,
+  ): Promise<WorkspaceSymbolsResult> {
     const limit = request.limit ?? 50;
 
     // Workspace symbols are not file-specific; use the configured workspace root
     // to resolve a session. If no session is ready, throw.
-    const { info, session } = await this.manager.ensureSession(this.workspaceRoot);
+    const { info, session } = await this.manager.ensureSession(
+      this.workspaceRoot,
+    );
     if (info.state !== "ready") {
       throw new Error(`LSP session not ready: ${info.message}`);
     }
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const rawResult = await requestWorkspaceSymbol(connection, request.query);
     if (rawResult === null) return { symbols: [] };
@@ -328,7 +351,10 @@ export class LspSemanticProvider implements SemanticProvider {
       name: string;
       kind: number;
       containerName?: string;
-      location: { uri: string; range: { start: { line: number; character: number } } };
+      location: {
+        uri: string;
+        range: { start: { line: number; character: number } };
+      };
     };
 
     const symbols = (capped as SymInfo[]).map((sym) => ({
@@ -341,7 +367,9 @@ export class LspSemanticProvider implements SemanticProvider {
     }));
 
     const caveats = truncated
-      ? [`Results truncated at ${limit}. Narrow query or increase limit for more precise results.`]
+      ? [
+          `Results truncated at ${limit}. Narrow query or increase limit for more precise results.`,
+        ]
       : undefined;
 
     return { symbols, caveats };
@@ -354,19 +382,30 @@ export class LspSemanticProvider implements SemanticProvider {
     }
 
     const uri = pathToFileURL(location.file).toString();
-    const position = { line: location.line - 1, character: location.column - 1 };
+    const position = {
+      line: location.line - 1,
+      character: location.column - 1,
+    };
     await session.prepareFile(location.file, languageIdForFile(location.file));
 
     const connection = session.getConnection();
-    if (connection === undefined) throw new Error("LSP connection unavailable.");
+    if (connection === undefined)
+      throw new Error("LSP connection unavailable.");
 
     const result = await requestSignatureHelp(connection, uri, position);
     if (result === null || result.signatures.length === 0) {
       return { signatures: [], activeSignature: 0, activeParameter: 0 };
     }
 
-    type SigParam = { label: string | [number, number]; documentation?: string | { value: string } };
-    type Sig = { label: string; documentation?: string | { value: string }; parameters?: SigParam[] };
+    type SigParam = {
+      label: string | [number, number];
+      documentation?: string | { value: string };
+    };
+    type Sig = {
+      label: string;
+      documentation?: string | { value: string };
+      parameters?: SigParam[];
+    };
 
     const signatures = (result.signatures as Sig[]).map((sig) => ({
       label: sig.label,
@@ -376,9 +415,10 @@ export class LspSemanticProvider implements SemanticProvider {
           : sig.documentation.value
         : undefined,
       parameters: (sig.parameters ?? []).map((param) => ({
-        label: typeof param.label === "string"
-          ? param.label
-          : sig.label.slice(param.label[0], param.label[1]),
+        label:
+          typeof param.label === "string"
+            ? param.label
+            : sig.label.slice(param.label[0], param.label[1]),
         documentation: param.documentation
           ? typeof param.documentation === "string"
             ? param.documentation

@@ -9,7 +9,11 @@ describe("formatSignatureHelpResult", () => {
   const location: FileLocation = { file: "/src/app.ts", line: 20, column: 18 };
 
   it("reports no signature when empty", () => {
-    const result: SignatureHelpResult = { signatures: [], activeSignature: 0, activeParameter: 0 };
+    const result: SignatureHelpResult = {
+      signatures: [],
+      activeSignature: 0,
+      activeParameter: 0,
+    };
     const text = formatSignatureHelpResult(location, result);
     expect(text).toContain("No signature help");
     expect(text).toContain("/src/app.ts:20:18");
@@ -19,7 +23,8 @@ describe("formatSignatureHelpResult", () => {
     const result: SignatureHelpResult = {
       signatures: [
         {
-          label: "createServer(deps?: ServerDependencies, opts?: ServerOptions): McpServer",
+          label:
+            "createServer(deps?: ServerDependencies, opts?: ServerOptions): McpServer",
           parameters: [
             { label: "deps?: ServerDependencies" },
             { label: "opts?: ServerOptions" },
@@ -39,7 +44,9 @@ describe("formatSignatureHelpResult", () => {
 
   it("formats location in header", () => {
     const result: SignatureHelpResult = {
-      signatures: [{ label: "fn(x: number): void", parameters: [{ label: "x: number" }] }],
+      signatures: [
+        { label: "fn(x: number): void", parameters: [{ label: "x: number" }] },
+      ],
       activeSignature: 0,
       activeParameter: 0,
     };

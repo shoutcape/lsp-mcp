@@ -64,11 +64,15 @@ export class StaticSemanticProvider implements SemanticProvider {
     return { item: null };
   }
 
-  async getTypeDefinition(_location: FileLocation): Promise<TypeDefinitionResult> {
+  async getTypeDefinition(
+    _location: FileLocation,
+  ): Promise<TypeDefinitionResult> {
     return { locations: [] };
   }
 
-  async getImplementation(_location: FileLocation): Promise<ImplementationResult> {
+  async getImplementation(
+    _location: FileLocation,
+  ): Promise<ImplementationResult> {
     return { locations: [] };
   }
 
@@ -76,11 +80,15 @@ export class StaticSemanticProvider implements SemanticProvider {
     return { symbols: [] };
   }
 
-  async getWorkspaceSymbols(_request: WorkspaceSymbolsRequest): Promise<WorkspaceSymbolsResult> {
+  async getWorkspaceSymbols(
+    _request: WorkspaceSymbolsRequest,
+  ): Promise<WorkspaceSymbolsResult> {
     return { symbols: [] };
   }
 
-  async getSignatureHelp(_location: FileLocation): Promise<SignatureHelpResult> {
+  async getSignatureHelp(
+    _location: FileLocation,
+  ): Promise<SignatureHelpResult> {
     return { signatures: [], activeSignature: 0, activeParameter: 0 };
   }
 }

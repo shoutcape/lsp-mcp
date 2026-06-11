@@ -191,7 +191,10 @@ describe("requestCallHierarchyOutgoing", () => {
 describe("requestTypeDefinition", () => {
   it("sends textDocument/typeDefinition request", async () => {
     const conn = mockConnection([]);
-    await requestTypeDefinition(conn, "file:///a.ts", { line: 3, character: 8 });
+    await requestTypeDefinition(conn, "file:///a.ts", {
+      line: 3,
+      character: 8,
+    });
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "textDocument/typeDefinition" }),
       {
@@ -205,7 +208,10 @@ describe("requestTypeDefinition", () => {
 describe("requestImplementation", () => {
   it("sends textDocument/implementation request", async () => {
     const conn = mockConnection([]);
-    await requestImplementation(conn, "file:///a.ts", { line: 7, character: 2 });
+    await requestImplementation(conn, "file:///a.ts", {
+      line: 7,
+      character: 2,
+    });
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "textDocument/implementation" }),
       {
@@ -243,7 +249,10 @@ describe("requestWorkspaceSymbol", () => {
 describe("requestSignatureHelp", () => {
   it("sends textDocument/signatureHelp request", async () => {
     const conn = mockConnection(null);
-    await requestSignatureHelp(conn, "file:///a.ts", { line: 10, character: 15 });
+    await requestSignatureHelp(conn, "file:///a.ts", {
+      line: 10,
+      character: 15,
+    });
     expect(conn.sendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: "textDocument/signatureHelp" }),
       {

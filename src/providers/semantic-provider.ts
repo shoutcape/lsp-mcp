@@ -223,6 +223,8 @@ export interface SemanticProvider {
   getTypeDefinition(location: FileLocation): Promise<TypeDefinitionResult>;
   getImplementation(location: FileLocation): Promise<ImplementationResult>;
   getDocumentSymbols(file: string): Promise<DocumentSymbolsResult>;
-  getWorkspaceSymbols(request: WorkspaceSymbolsRequest): Promise<WorkspaceSymbolsResult>;
+  getWorkspaceSymbols(
+    request: WorkspaceSymbolsRequest,
+  ): Promise<WorkspaceSymbolsResult>;
   getSignatureHelp(location: FileLocation): Promise<SignatureHelpResult>;
 }
